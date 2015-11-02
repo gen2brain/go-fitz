@@ -1,8 +1,7 @@
 package fitz
 
 // #include <mupdf/fitz.h>
-// #cgo LDFLAGS: -lmupdf -lmujs -lopenjp2 -ljbig2dec -lz -lm -lfreetype -ljpeg -lpng -lbz2 -lcrypto
-// #cgo windows LDFLAGS: -lmupdf -lmujs -lopenjp2 -ljbig2dec -lz -lm -lfreetype -ljpeg -lpng -lbz2 -lcrypto -lgdi32
+// #cgo LDFLAGS: -lmupdf -lmujs -lopenjpeg -ljbig2dec -lz -lm -lfreetype -ljpeg -lpng -lbz2
 // const char *fz_version = FZ_VERSION;
 import "C"
 
@@ -62,7 +61,10 @@ func (f *Document) Image(page int) (image.Image, error) {
 	var ctm C.fz_matrix
 	C.fz_scale(&ctm, C.float(2.0), C.float(2.0))
 
-	pixmap := C.fz_new_pixmap_from_page_number(f.ctx, f.doc, C.int(page), &ctm, C.fz_device_rgb(f.ctx))
+	cs := C.fz_device_rgb(f.ctx)
+	defer C.fz_drop_colorspace(f.ctx, cs)
+
+	pixmap := C.fz_new_pixmap_from_page_number(f.ctx, f.doc, C.int(page), &ctm, cs)
 	if pixmap == nil {
 		return nil, errors.New("fitz: cannot create pixmap")
 	}

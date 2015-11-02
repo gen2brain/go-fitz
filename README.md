@@ -10,7 +10,9 @@ MuPDF version 1.8 is required:
 
     $ git clone git://git.ghostscript.com/mupdf.git && cd mupdf
     $ git submodule update --init --recursive
-    $ HAVE_X11=no HAVE_GLFW=no HAVE_GLUT=no WANT_CURL=no make && make install
+    $ curl -L https://gist.githubusercontent.com/gen2brain/7869ac4c6db5933f670f/raw/1619394dc957ae10bcd73c713760993466b4bfea/mupdf-openssl-curl.patch | patch -p1
+    $ sed -e "1iHAVE_X11 = no" -e "1iWANT_OPENSSL = no" -e "1iWANT_CURL = no" -i Makerules
+    $ HAVE_X11=no HAVE_GLFW=no HAVE_GLUT=no WANT_OPENSSL=no WANT_CURL=no HAVE_MUJS=yes HAVE_JSCORE=no HAVE_V8=no make && make install
 
     $ go get github.com/gen2brain/go-fitz
 
