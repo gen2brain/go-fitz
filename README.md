@@ -6,9 +6,13 @@ Simple Golang wrapper for the [MuPDF](http://mupdf.com/) Fitz library that can e
 Install
 -------
 
-MuPDF version 1.8 is required.
+MuPDF version 1.8 is required:
 
-    go get github.com/gen2brain/go-fitz
+    $ git clone git://git.ghostscript.com/mupdf.git && cd mupdf
+    $ git submodule update --init --recursive
+    $ HAVE_X11=no HAVE_GLFW=no HAVE_GLUT=no WANT_CURL=no make && make install
+
+    $ go get github.com/gen2brain/go-fitz
 
 Example
 -------
