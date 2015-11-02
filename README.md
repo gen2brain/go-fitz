@@ -3,6 +3,12 @@ go-fitz
 
 Simple Golang wrapper for the [MuPDF](http://mupdf.com/) Fitz library.
 
+Install
+-------
+
+MuPDF version 1.8 is required.
+
+    go get github.com/gen2brain/go-fitz
 
 Example
 -------
