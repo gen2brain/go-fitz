@@ -1,7 +1,7 @@
 go-fitz
 ========
 
-Simple Golang wrapper for the [MuPDF](http://mupdf.com/) Fitz library that can extract images from documents.
+Simple Golang wrapper for the [MuPDF](http://mupdf.com/) Fitz library that can extract images from PDF, EPUB and XPS documents.
 
 Install
 -------
