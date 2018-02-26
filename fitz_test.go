@@ -22,7 +22,7 @@ func TestImage(t *testing.T) {
 		t.Error(err)
 	}
 
-	for n := 0; n < doc.Pages(); n++ {
+	for n := 0; n < doc.NumPage(); n++ {
 		img, err := doc.Image(n)
 		if err != nil {
 			t.Error(err)
@@ -60,7 +60,7 @@ func TestImageFromMemory(t *testing.T) {
 		t.Error(err)
 	}
 
-	for n := 0; n < doc.Pages(); n++ {
+	for n := 0; n < doc.NumPage(); n++ {
 		img, err := doc.Image(n)
 		if err != nil {
 			t.Error(err)

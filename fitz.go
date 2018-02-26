@@ -137,14 +137,14 @@ func NewFromReader(r io.Reader) (f *Document, err error) {
 	return
 }
 
-// Pages returns total number of pages in document
-func (f *Document) Pages() int {
+// NumPage returns total number of pages in document
+func (f *Document) NumPage() int {
 	return int(C.fz_count_pages(f.ctx, f.doc))
 }
 
 // Image returns image for given page number.
 func (f *Document) Image(pageNumber int) (image.Image, error) {
-	if pageNumber >= f.Pages() {
+	if pageNumber >= f.NumPage() {
 		return nil, ErrPageMissing
 	}
 

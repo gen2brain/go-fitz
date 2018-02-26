@@ -15,7 +15,7 @@ if err != nil {
 
 defer doc.Close()
 
-for n := 0; n < doc.Pages(); n++ {
+for n := 0; n < doc.NumPage(); n++ {
     img, err := doc.Image(n)
     if err != nil {
         panic(err)
