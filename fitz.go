@@ -1,26 +1,43 @@
+// Package fitz provides wrapper for the [MuPDF](http://mupdf.com/) that can extract images from PDF, EPUB and XPS documents.
 package fitz
 
-// #include <mupdf/fitz.h>
-// #cgo LDFLAGS: -lmupdf -lmujs -lopenjpeg -ljbig2dec -lz -lm -lfreetype -ljpeg -lpng -lbz2
-// const char *fz_version = FZ_VERSION;
+/*
+#include <mupdf/fitz.h>
+#include <stdlib.h>
+
+#cgo CFLAGS: -Iinclude
+
+#cgo linux,amd64 LDFLAGS: -L${SRCDIR}/libs -lmupdf_linux_amd64 -lmupdfthird_linux_amd64 -lm
+#cgo linux,!android,arm LDFLAGS: -L${SRCDIR}/libs -lmupdf_linux_arm -lmupdfthird_linux_arm -lm
+#cgo linux,!android,arm64 LDFLAGS: -L${SRCDIR}/libs -lmupdf_linux_arm64 -lmupdfthird_linux_arm64 -lm
+#cgo android,arm LDFLAGS: -L${SRCDIR}/libs -lmupdf_android_arm -lmupdfthird_android_arm -lm
+#cgo android,arm64 LDFLAGS: -L${SRCDIR}/libs -lmupdf_android_arm64 -lmupdfthird_android_arm64 -lm
+#cgo windows,386 LDFLAGS: -L${SRCDIR}/libs -lmupdf_windows_386 -lmupdfthird_windows_386 -lm
+#cgo windows,amd64 LDFLAGS: -L${SRCDIR}/libs -lmupdf_windows_amd64 -lmupdfthird_windows_amd64 -lm
+#cgo darwin,amd64 LDFLAGS: -L${SRCDIR}/libs -lmupdf_darwin_amd64 -lmupdfthird_darwin_amd64 -lm
+
+const char *fz_version = FZ_VERSION;
+*/
 import "C"
 
 import (
 	"errors"
 	"image"
+	"io"
+	"io/ioutil"
 	"os"
 	"path/filepath"
 	"unsafe"
 )
 
-// Fitz document
+// Document represents fitz document
 type Document struct {
 	ctx *C.struct_fz_context_s
 	doc *C.struct_fz_document_s
 }
 
-// NewDocument returns new fitz document
-func NewDocument(filename string) (f *Document, err error) {
+// New returns new fitz document.
+func New(filename string) (f *Document, err error) {
 	f = &Document{}
 
 	filename, err = filepath.Abs(filename)
@@ -28,13 +45,12 @@ func NewDocument(filename string) (f *Document, err error) {
 		return
 	}
 
-	if _, e := os.Stat(filename); os.IsNotExist(e) {
+	if _, e := os.Stat(filename); e != nil {
 		err = errors.New("fitz: no such file")
 		return
 	}
 
-	f.ctx = (*C.struct_fz_context_s)(unsafe.Pointer(
-		C.fz_new_context_imp(nil, nil, C.FZ_STORE_UNLIMITED, C.fz_version)))
+	f.ctx = (*C.struct_fz_context_s)(unsafe.Pointer(C.fz_new_context_imp(nil, nil, C.FZ_STORE_UNLIMITED, C.fz_version)))
 	if f.ctx == nil {
 		err = errors.New("fitz: cannot create context")
 		return
@@ -42,11 +58,57 @@ func NewDocument(filename string) (f *Document, err error) {
 
 	C.fz_register_document_handlers(f.ctx)
 
-	f.doc = C.fz_open_document(f.ctx, C.CString(filename))
+	cfilename := C.CString(filename)
+	defer C.free(unsafe.Pointer(cfilename))
+
+	f.doc = C.fz_open_document(f.ctx, cfilename)
 	if f.doc == nil {
 		err = errors.New("fitz: cannot open document")
+	}
+
+	return
+}
+
+// NewFromMemory returns new fitz document from byte slice.
+func NewFromMemory(b []byte) (f *Document, err error) {
+	f = &Document{}
+
+	f.ctx = (*C.struct_fz_context_s)(unsafe.Pointer(C.fz_new_context_imp(nil, nil, C.FZ_STORE_UNLIMITED, C.fz_version)))
+	if f.ctx == nil {
+		err = errors.New("fitz: cannot create context")
 		return
 	}
+
+	C.fz_register_document_handlers(f.ctx)
+
+	data := (*C.uchar)(C.CBytes(b))
+
+	stream := C.fz_open_memory(f.ctx, data, C.ulong(len(b)))
+	if stream == nil {
+		err = errors.New("fitz: cannot open memory")
+		return
+	}
+
+	cmagic := C.CString("application/pdf")
+	defer C.free(unsafe.Pointer(cmagic))
+
+	f.doc = C.fz_open_document_with_stream(f.ctx, cmagic, stream)
+	if f.doc == nil {
+		err = errors.New("fitz: cannot open document")
+	}
+
+	return
+}
+
+// NewFromReader returns new fitz document from io.Reader.
+func NewFromReader(r io.Reader) (f *Document, err error) {
+	b, e := ioutil.ReadAll(r)
+	if e != nil {
+		err = e
+		return
+	}
+
+	f, err = NewFromMemory(b)
 
 	return
 }
@@ -56,22 +118,38 @@ func (f *Document) Pages() int {
 	return int(C.fz_count_pages(f.ctx, f.doc))
 }
 
-// Image returns image for given page number
-func (f *Document) Image(page int) (image.Image, error) {
+// Image returns image for given page number.
+func (f *Document) Image(pageNumber int) (image.Image, error) {
+	if pageNumber >= f.Pages() {
+		return nil, errors.New("fitz: page missing")
+	}
+
+	page := C.fz_load_page(f.ctx, f.doc, C.int(pageNumber))
+	defer C.fz_drop_page(f.ctx, page)
+
+	var bounds C.fz_rect
+	C.fz_bound_page(f.ctx, page, &bounds)
+
 	var ctm C.fz_matrix
-	C.fz_scale(&ctm, C.float(4.0), C.float(4.0))
+	C.fz_scale(&ctm, C.float(300.0/72), C.float(300.0/72))
 
-	cs := C.fz_device_rgb(f.ctx)
-	defer C.fz_drop_colorspace(f.ctx, cs)
+	var bbox C.fz_irect
+	C.fz_transform_rect(&bounds, &ctm)
+	C.fz_round_rect(&bbox, &bounds)
 
-	pixmap := C.fz_new_pixmap_from_page_number(f.ctx, f.doc, C.int(page), &ctm, cs)
+	pixmap := C.fz_new_pixmap_with_bbox(f.ctx, C.fz_device_rgb(f.ctx), &bbox, nil, 1)
 	if pixmap == nil {
 		return nil, errors.New("fitz: cannot create pixmap")
 	}
+
+	C.fz_clear_pixmap_with_value(f.ctx, pixmap, C.int(0xff))
 	defer C.fz_drop_pixmap(f.ctx, pixmap)
 
-	var bbox C.fz_irect
-	C.fz_pixmap_bbox(f.ctx, pixmap, &bbox)
+	device := C.fz_new_draw_device(f.ctx, &ctm, pixmap)
+	defer C.fz_drop_device(f.ctx, device)
+
+	draw_matrix := C.fz_identity
+	C.fz_run_page(f.ctx, page, device, &draw_matrix, nil)
 
 	pixels := C.fz_pixmap_samples(f.ctx, pixmap)
 	if pixels == nil {
@@ -79,14 +157,17 @@ func (f *Document) Image(page int) (image.Image, error) {
 	}
 
 	rect := image.Rect(int(bbox.x0), int(bbox.y0), int(bbox.x1), int(bbox.y1))
-	bytes := C.GoBytes(unsafe.Pointer(pixels), 4*bbox.x1*bbox.y1)
+	bytes := C.GoBytes(unsafe.Pointer(pixels), C.int(4*bbox.x1*bbox.y1))
 	img := &image.RGBA{bytes, 4 * rect.Max.X, rect}
+
+	C.fz_close_device(f.ctx, device)
 
 	return img, nil
 }
 
-// Close closes the underlying fitz document
-func (f *Document) Close() {
+// Close closes the underlying fitz document.
+func (f *Document) Close() error {
 	C.fz_drop_document(f.ctx, f.doc)
 	C.fz_drop_context(f.ctx)
+	return nil
 }
