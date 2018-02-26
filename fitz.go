@@ -30,6 +30,17 @@ import (
 	"unsafe"
 )
 
+// Errors
+var (
+	ErrNoSuchFile    = errors.New("fitz: no such file")
+	ErrCreateContext = errors.New("fitz: cannot create context")
+	ErrOpenDocument  = errors.New("fitz: cannot open document")
+	ErrOpenMemory    = errors.New("fitz: cannot open memory")
+	ErrPageMissing   = errors.New("fitz: page missing")
+	ErrCreatePixmap  = errors.New("fitz: cannot create pixmap")
+	ErrPixmapSamples = errors.New("fitz: cannot get pixmap samples")
+)
+
 // Document represents fitz document
 type Document struct {
 	ctx *C.struct_fz_context_s
@@ -46,13 +57,13 @@ func New(filename string) (f *Document, err error) {
 	}
 
 	if _, e := os.Stat(filename); e != nil {
-		err = errors.New("fitz: no such file")
+		err = ErrNoSuchFile
 		return
 	}
 
 	f.ctx = (*C.struct_fz_context_s)(unsafe.Pointer(C.fz_new_context_imp(nil, nil, C.FZ_STORE_UNLIMITED, C.fz_version)))
 	if f.ctx == nil {
-		err = errors.New("fitz: cannot create context")
+		err = ErrCreateContext
 		return
 	}
 
@@ -63,7 +74,7 @@ func New(filename string) (f *Document, err error) {
 
 	f.doc = C.fz_open_document(f.ctx, cfilename)
 	if f.doc == nil {
-		err = errors.New("fitz: cannot open document")
+		err = ErrOpenDocument
 	}
 
 	return
@@ -75,7 +86,7 @@ func NewFromMemory(b []byte) (f *Document, err error) {
 
 	f.ctx = (*C.struct_fz_context_s)(unsafe.Pointer(C.fz_new_context_imp(nil, nil, C.FZ_STORE_UNLIMITED, C.fz_version)))
 	if f.ctx == nil {
-		err = errors.New("fitz: cannot create context")
+		err = ErrCreateContext
 		return
 	}
 
@@ -85,7 +96,7 @@ func NewFromMemory(b []byte) (f *Document, err error) {
 
 	stream := C.fz_open_memory(f.ctx, data, C.ulong(len(b)))
 	if stream == nil {
-		err = errors.New("fitz: cannot open memory")
+		err = ErrOpenMemory
 		return
 	}
 
@@ -94,7 +105,7 @@ func NewFromMemory(b []byte) (f *Document, err error) {
 
 	f.doc = C.fz_open_document_with_stream(f.ctx, cmagic, stream)
 	if f.doc == nil {
-		err = errors.New("fitz: cannot open document")
+		err = ErrOpenDocument
 	}
 
 	return
@@ -121,7 +132,7 @@ func (f *Document) Pages() int {
 // Image returns image for given page number.
 func (f *Document) Image(pageNumber int) (image.Image, error) {
 	if pageNumber >= f.Pages() {
-		return nil, errors.New("fitz: page missing")
+		return nil, ErrPageMissing
 	}
 
 	page := C.fz_load_page(f.ctx, f.doc, C.int(pageNumber))
@@ -139,7 +150,7 @@ func (f *Document) Image(pageNumber int) (image.Image, error) {
 
 	pixmap := C.fz_new_pixmap_with_bbox(f.ctx, C.fz_device_rgb(f.ctx), &bbox, nil, 1)
 	if pixmap == nil {
-		return nil, errors.New("fitz: cannot create pixmap")
+		return nil, ErrCreatePixmap
 	}
 
 	C.fz_clear_pixmap_with_value(f.ctx, pixmap, C.int(0xff))
@@ -153,7 +164,7 @@ func (f *Document) Image(pageNumber int) (image.Image, error) {
 
 	pixels := C.fz_pixmap_samples(f.ctx, pixmap)
 	if pixels == nil {
-		return nil, errors.New("fitz: cannot get pixmap samples")
+		return nil, ErrPixmapSamples
 	}
 
 	rect := image.Rect(int(bbox.x0), int(bbox.y0), int(bbox.x1), int(bbox.y1))
