@@ -79,7 +79,7 @@ func New(filename string) (f *Document, err error) {
 	}
 
 	ret := C.fz_needs_password(f.ctx, f.doc)
-	v := bool(int(ret) == 1)
+	v := bool(int(ret) != 0)
 	if v {
 		err = ErrNeedsPassword
 	}
@@ -116,7 +116,7 @@ func NewFromMemory(b []byte) (f *Document, err error) {
 	}
 
 	ret := C.fz_needs_password(f.ctx, f.doc)
-	v := bool(int(ret) == 1)
+	v := bool(int(ret) != 0)
 	if v {
 		err = ErrNeedsPassword
 	}
