@@ -39,6 +39,7 @@ var (
 	ErrPageMissing   = errors.New("fitz: page missing")
 	ErrCreatePixmap  = errors.New("fitz: cannot create pixmap")
 	ErrPixmapSamples = errors.New("fitz: cannot get pixmap samples")
+	ErrNeedsPassword = errors.New("fitz: document needs password")
 )
 
 // Document represents fitz document
@@ -77,6 +78,12 @@ func New(filename string) (f *Document, err error) {
 		err = ErrOpenDocument
 	}
 
+	ret := C.fz_needs_password(f.ctx, f.doc)
+	v := bool(int(ret) == 1)
+	if v {
+		err = ErrNeedsPassword
+	}
+
 	return
 }
 
@@ -106,6 +113,12 @@ func NewFromMemory(b []byte) (f *Document, err error) {
 	f.doc = C.fz_open_document_with_stream(f.ctx, cmagic, stream)
 	if f.doc == nil {
 		err = ErrOpenDocument
+	}
+
+	ret := C.fz_needs_password(f.ctx, f.doc)
+	v := bool(int(ret) == 1)
+	if v {
+		err = ErrNeedsPassword
 	}
 
 	return
