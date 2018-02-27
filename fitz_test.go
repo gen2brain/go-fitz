@@ -60,6 +60,8 @@ func TestImageFromMemory(t *testing.T) {
 		t.Error(err)
 	}
 
+	defer os.RemoveAll(tmpDir)
+
 	for n := 0; n < doc.NumPage(); n++ {
 		img, err := doc.Image(n)
 		if err != nil {
@@ -72,6 +74,39 @@ func TestImageFromMemory(t *testing.T) {
 		}
 
 		err = jpeg.Encode(f, img, &jpeg.Options{jpeg.DefaultQuality})
+		if err != nil {
+			t.Error(err)
+		}
+
+		f.Close()
+	}
+}
+
+func TestText(t *testing.T) {
+	doc, err := New(filepath.Join("testdata", "test.pdf"))
+	if err != nil {
+		t.Error(err)
+	}
+
+	defer doc.Close()
+
+	tmpDir, err := ioutil.TempDir(os.TempDir(), "fitz")
+	if err != nil {
+		t.Error(err)
+	}
+
+	for n := 0; n < doc.NumPage(); n++ {
+		text, err := doc.Text(n)
+		if err != nil {
+			t.Error(err)
+		}
+
+		f, err := os.Create(filepath.Join(tmpDir, fmt.Sprintf("test%03d.txt", n)))
+		if err != nil {
+			t.Error(err)
+		}
+
+		_, err = f.WriteString(text)
 		if err != nil {
 			t.Error(err)
 		}

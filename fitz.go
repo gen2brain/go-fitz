@@ -1,4 +1,5 @@
-// Package fitz provides wrapper for the [MuPDF](http://mupdf.com/) that can extract images from PDF, EPUB and XPS documents.
+// Package fitz provides wrapper for the [MuPDF](http://mupdf.com/) fitz library
+// that can extract pages from PDF, EPUB and XPS documents as images or text.
 package fitz
 
 /*
@@ -30,7 +31,7 @@ import (
 	"unsafe"
 )
 
-// Errors
+// Errors.
 var (
 	ErrNoSuchFile    = errors.New("fitz: no such file")
 	ErrCreateContext = errors.New("fitz: cannot create context")
@@ -42,7 +43,7 @@ var (
 	ErrNeedsPassword = errors.New("fitz: document needs password")
 )
 
-// Document represents fitz document
+// Document represents fitz document.
 type Document struct {
 	ctx *C.struct_fz_context_s
 	doc *C.struct_fz_document_s
@@ -137,7 +138,7 @@ func NewFromReader(r io.Reader) (f *Document, err error) {
 	return
 }
 
-// NumPage returns total number of pages in document
+// NumPage returns total number of pages in document.
 func (f *Document) NumPage() int {
 	return int(C.fz_count_pages(f.ctx, f.doc))
 }
@@ -187,6 +188,48 @@ func (f *Document) Image(pageNumber int) (image.Image, error) {
 	C.fz_close_device(f.ctx, device)
 
 	return img, nil
+}
+
+// Text returns text for given page number.
+func (f *Document) Text(pageNumber int) (string, error) {
+	if pageNumber >= f.NumPage() {
+		return "", ErrPageMissing
+	}
+
+	page := C.fz_load_page(f.ctx, f.doc, C.int(pageNumber))
+	defer C.fz_drop_page(f.ctx, page)
+
+	var bounds C.fz_rect
+	C.fz_bound_page(f.ctx, page, &bounds)
+
+	var ctm C.fz_matrix
+	C.fz_scale(&ctm, C.float(300.0/72), C.float(300.0/72))
+
+	C.fz_transform_rect(&bounds, &ctm)
+
+	text := C.fz_new_stext_page(f.ctx, &bounds)
+	defer C.fz_drop_stext_page(f.ctx, text)
+
+	var opts C.fz_stext_options
+	opts.flags = 0
+
+	device := C.fz_new_stext_device(f.ctx, text, &opts)
+	defer C.fz_drop_device(f.ctx, device)
+
+	var cookie C.fz_cookie
+	C.fz_run_page(f.ctx, page, device, &ctm, &cookie)
+
+	buf := C.fz_new_buffer_from_stext_page(f.ctx, text)
+	defer C.fz_drop_buffer(f.ctx, buf)
+
+	out := C.fz_new_output_with_buffer(f.ctx, buf)
+	C.fz_print_stext_page_as_text(f.ctx, out, text)
+
+	str := C.fz_string_from_buffer(f.ctx, buf)
+
+	C.fz_close_device(f.ctx, device)
+
+	return C.GoString(str), nil
 }
 
 // Close closes the underlying fitz document.

@@ -1,6 +1,8 @@
 ## go-fitz
+[![GoDoc](https://godoc.org/github.com/gen2brain/go-fitz?status.svg)](https://godoc.org/github.com/gen2brain/go-fitz)
 
-Go wrapper for [MuPDF](http://mupdf.com/) fitz library that can extract images from PDF, EPUB and XPS documents.
+Go wrapper for [MuPDF](http://mupdf.com/) fitz library 
+that can extract pages from PDF, EPUB and XPS documents as images or text.
 
 ### Install
 
