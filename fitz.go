@@ -162,8 +162,8 @@ func (f *Document) Image(pageNumber int) (image.Image, error) {
 	device := C.fz_new_draw_device(f.ctx, &ctm, pixmap)
 	defer C.fz_drop_device(f.ctx, device)
 
-	draw_matrix := C.fz_identity
-	C.fz_run_page(f.ctx, page, device, &draw_matrix, nil)
+	drawMatrix := C.fz_identity
+	C.fz_run_page(f.ctx, page, device, &drawMatrix, nil)
 
 	pixels := C.fz_pixmap_samples(f.ctx, pixmap)
 	if pixels == nil {
@@ -172,7 +172,7 @@ func (f *Document) Image(pageNumber int) (image.Image, error) {
 
 	rect := image.Rect(int(bbox.x0), int(bbox.y0), int(bbox.x1), int(bbox.y1))
 	bytes := C.GoBytes(unsafe.Pointer(pixels), C.int(4*bbox.x1*bbox.y1))
-	img := &image.RGBA{bytes, 4 * rect.Max.X, rect}
+	img := &image.RGBA{Pix: bytes, Stride: 4 * rect.Max.X, Rect: rect}
 
 	C.fz_close_device(f.ctx, device)
 

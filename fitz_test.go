@@ -33,7 +33,7 @@ func TestImage(t *testing.T) {
 			t.Error(err)
 		}
 
-		err = jpeg.Encode(f, img, &jpeg.Options{jpeg.DefaultQuality})
+		err = jpeg.Encode(f, img, &jpeg.Options{Quality: jpeg.DefaultQuality})
 		if err != nil {
 			t.Error(err)
 		}
@@ -73,7 +73,7 @@ func TestImageFromMemory(t *testing.T) {
 			t.Error(err)
 		}
 
-		err = jpeg.Encode(f, img, &jpeg.Options{jpeg.DefaultQuality})
+		err = jpeg.Encode(f, img, &jpeg.Options{Quality: jpeg.DefaultQuality})
 		if err != nil {
 			t.Error(err)
 		}
