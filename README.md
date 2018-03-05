@@ -17,6 +17,7 @@ if err != nil {
 
 defer doc.Close()
 
+// Extract pages as images
 for n := 0; n < doc.NumPage(); n++ {
     img, err := doc.Image(n)
     if err != nil {
@@ -29,6 +30,21 @@ for n := 0; n < doc.NumPage(); n++ {
     }
 
     err = jpeg.Encode(f, img, &jpeg.Options{jpeg.DefaultQuality})
+    if err != nil {
+        panic(err)
+    }
+
+    f.Close()
+}
+
+// Extract pages as text
+for n := 0; n < doc.NumPage(); n++ {
+    img, err := doc.Text(n)
+    if err != nil {
+        panic(err)
+    }
+
+    f, err := os.Create(fmt.Sprintf("test%03d.txt", n))
     if err != nil {
         panic(err)
     }
