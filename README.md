@@ -42,12 +42,17 @@ for n := 0; n < doc.NumPage(); n++ {
 
 // Extract pages as text
 for n := 0; n < doc.NumPage(); n++ {
-    img, err := doc.Text(n)
+    text, err := doc.Text(n)
     if err != nil {
         panic(err)
     }
 
-    f, err := os.Create(fmt.Sprintf("test%03d.txt", n))
+    f, err := os.Create(filepath.Join(tmpDir, fmt.Sprintf("test%03d.txt", n)))
+    if err != nil {
+        panic(err)
+    }
+
+    _, err = f.WriteString(text)
     if err != nil {
         panic(err)
     }
