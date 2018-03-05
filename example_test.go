@@ -1,19 +1,4 @@
-## go-fitz
-[![TravisCI Build Status](https://travis-ci.org/gen2brain/go-fitz.svg?branch=master)](https://travis-ci.org/gen2brain/go-fitz)
-[![AppVeyor Build Status](https://ci.appveyor.com/api/projects/status/vuuoq9epsd1sa007?svg=true)](https://ci.appveyor.com/project/gen2brain/go-fitz)
-[![GoDoc](https://godoc.org/github.com/gen2brain/go-fitz?status.svg)](https://godoc.org/github.com/gen2brain/go-fitz)
-[![Go Report Card](https://goreportcard.com/badge/github.com/gen2brain/go-fitz?branch=master)](https://goreportcard.com/report/github.com/gen2brain/go-fitz)
-
-Go wrapper for [MuPDF](http://mupdf.com/) fitz library 
-that can extract pages from PDF, EPUB and XPS documents as images or text.
-
-### Install
-
-    go get -u github.com/gen2brain/go-fitz
-
-### Example
-```go
-package main
+package fitz
 
 import (
 	"fmt"
@@ -21,12 +6,10 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
-
-	"github.com/gen2brain/go-fitz"
 )
 
 func main() {
-	doc, err := fitz.New("test.pdf")
+	doc, err := New("test.pdf")
 	if err != nil {
 		panic(err)
 	}
@@ -78,4 +61,3 @@ func main() {
 		f.Close()
 	}
 }
-```
