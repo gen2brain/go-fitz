@@ -8,7 +8,7 @@ import (
 	"path/filepath"
 )
 
-func ExampleExtract() {
+func ExampleNew() {
 	doc, err := New("test.pdf")
 	if err != nil {
 		panic(err)
