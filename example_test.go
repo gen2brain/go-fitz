@@ -33,7 +33,7 @@ func ExampleNew() {
 			panic(err)
 		}
 
-		err = jpeg.Encode(f, img, &jpeg.Options{jpeg.DefaultQuality})
+		err = jpeg.Encode(f, img, &jpeg.Options{Quality: jpeg.DefaultQuality})
 		if err != nil {
 			panic(err)
 		}
