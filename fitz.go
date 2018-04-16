@@ -165,6 +165,8 @@ func (f *Document) Image(pageNumber int) (image.Image, error) {
 	drawMatrix := C.fz_identity
 	C.fz_run_page(f.ctx, page, device, &drawMatrix, nil)
 
+	C.fz_close_device(f.ctx, device)
+
 	pixels := C.fz_pixmap_samples(f.ctx, pixmap)
 	if pixels == nil {
 		return nil, ErrPixmapSamples
@@ -173,8 +175,6 @@ func (f *Document) Image(pageNumber int) (image.Image, error) {
 	rect := image.Rect(int(bbox.x0), int(bbox.y0), int(bbox.x1), int(bbox.y1))
 	bytes := C.GoBytes(unsafe.Pointer(pixels), C.int(4*bbox.x1*bbox.y1))
 	img := &image.RGBA{Pix: bytes, Stride: 4 * rect.Max.X, Rect: rect}
-
-	C.fz_close_device(f.ctx, device)
 
 	return img, nil
 }
@@ -212,13 +212,12 @@ func (f *Document) Text(pageNumber int) (string, error) {
 	defer C.fz_drop_buffer(f.ctx, buf)
 
 	out := C.fz_new_output_with_buffer(f.ctx, buf)
+	defer C.fz_drop_output(f.ctx, out)
+
 	C.fz_print_stext_page_as_text(f.ctx, out, text)
+	str := C.GoString(C.fz_string_from_buffer(f.ctx, buf))
 
-	str := C.fz_string_from_buffer(f.ctx, buf)
-
-	C.fz_close_device(f.ctx, device)
-
-	return C.GoString(str), nil
+	return str, nil
 }
 
 // HTML returns html for given page number.
@@ -254,6 +253,8 @@ func (f *Document) HTML(pageNumber int, header bool) (string, error) {
 	defer C.fz_drop_buffer(f.ctx, buf)
 
 	out := C.fz_new_output_with_buffer(f.ctx, buf)
+	defer C.fz_drop_output(f.ctx, out)
+
 	if header {
 		C.fz_print_stext_header_as_html(f.ctx, out)
 	}
@@ -261,6 +262,41 @@ func (f *Document) HTML(pageNumber int, header bool) (string, error) {
 	if header {
 		C.fz_print_stext_trailer_as_html(f.ctx, out)
 	}
+
+	str := C.GoString(C.fz_string_from_buffer(f.ctx, buf))
+
+	return str, nil
+}
+
+// SVG returns svg document for given page number.
+func (f *Document) SVG(pageNumber int) (string, error) {
+	if pageNumber >= f.NumPage() {
+		return "", ErrPageMissing
+	}
+
+	page := C.fz_load_page(f.ctx, f.doc, C.int(pageNumber))
+	defer C.fz_drop_page(f.ctx, page)
+
+	var bounds C.fz_rect
+	C.fz_bound_page(f.ctx, page, &bounds)
+
+	var ctm C.fz_matrix
+	C.fz_scale(&ctm, C.float(72.0/72), C.float(72.0/72))
+	C.fz_transform_rect(&bounds, &ctm)
+
+	buf := C.fz_new_buffer(f.ctx, 1024)
+	defer C.fz_drop_buffer(f.ctx, buf)
+
+	out := C.fz_new_output_with_buffer(f.ctx, buf)
+	defer C.fz_drop_output(f.ctx, out)
+
+	device := C.fz_new_svg_device(f.ctx, out, bounds.x1-bounds.x0, bounds.y1-bounds.y0, C.FZ_SVG_TEXT_AS_PATH, 1)
+	//defer C.fz_drop_device(f.ctx, device)
+
+	var cookie C.fz_cookie
+	C.fz_run_page(f.ctx, page, device, &ctm, &cookie)
+
+	C.fz_close_device(f.ctx, device)
 
 	str := C.GoString(C.fz_string_from_buffer(f.ctx, buf))
 

@@ -80,4 +80,24 @@ func ExampleNew() {
 
 		f.Close()
 	}
+
+	// Extract pages as svg
+	for n := 0; n < doc.NumPage(); n++ {
+		svg, err := doc.SVG(n)
+		if err != nil {
+			panic(err)
+		}
+
+		f, err := os.Create(filepath.Join(tmpDir, fmt.Sprintf("test%03d.svg", n)))
+		if err != nil {
+			panic(err)
+		}
+
+		_, err = f.WriteString(svg)
+		if err != nil {
+			panic(err)
+		}
+
+		f.Close()
+	}
 }

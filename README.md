@@ -5,7 +5,7 @@
 [![Go Report Card](https://goreportcard.com/badge/github.com/gen2brain/go-fitz?branch=master)](https://goreportcard.com/report/github.com/gen2brain/go-fitz)
 
 Go wrapper for [MuPDF](http://mupdf.com/) fitz library 
-that can extract pages from PDF, EPUB and XPS documents as images, text or html.
+that can extract pages from PDF, EPUB and XPS documents as images, text, html or svg.
 
 ### Install
 
