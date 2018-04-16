@@ -11,9 +11,10 @@ that can extract pages from PDF, EPUB and XPS documents as images, text or html.
 
     go get -u github.com/gen2brain/go-fitz
 
-If you get an error installing or building your projects, try adding the tag gcc7
+### Build tags
 
-    go get -u -tags gcc7 github.com/gen2brain/go-fitz
+* `extlib` - use external MuPDF library
+* `gcc7` - if you get error on Linux `recompile with -fPIC` try adding this tag
     
 ### Example
 ```go
