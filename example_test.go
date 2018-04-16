@@ -63,7 +63,7 @@ func ExampleNew() {
 
 	// Extract pages as html
 	for n := 0; n < doc.NumPage(); n++ {
-		html, err := doc.HTML(n)
+		html, err := doc.HTML(n, true)
 		if err != nil {
 			panic(err)
 		}

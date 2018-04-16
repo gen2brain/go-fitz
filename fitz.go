@@ -192,9 +192,7 @@ func (f *Document) Text(pageNumber int) (string, error) {
 	C.fz_bound_page(f.ctx, page, &bounds)
 
 	var ctm C.fz_matrix
-	C.fz_scale(&ctm, C.float(300.0/72), C.float(300.0/72))
-
-	C.fz_transform_rect(&bounds, &ctm)
+	C.fz_scale(&ctm, C.float(72.0/72), C.float(72.0/72))
 
 	text := C.fz_new_stext_page(f.ctx, &bounds)
 	defer C.fz_drop_stext_page(f.ctx, text)
@@ -207,6 +205,8 @@ func (f *Document) Text(pageNumber int) (string, error) {
 
 	var cookie C.fz_cookie
 	C.fz_run_page(f.ctx, page, device, &ctm, &cookie)
+
+	C.fz_close_device(f.ctx, device)
 
 	buf := C.fz_new_buffer_from_stext_page(f.ctx, text)
 	defer C.fz_drop_buffer(f.ctx, buf)
@@ -222,7 +222,7 @@ func (f *Document) Text(pageNumber int) (string, error) {
 }
 
 // HTML returns html for given page number.
-func (f *Document) HTML(pageNumber int) (string, error) {
+func (f *Document) HTML(pageNumber int, header bool) (string, error) {
 	if pageNumber >= f.NumPage() {
 		return "", ErrPageMissing
 	}
@@ -234,15 +234,13 @@ func (f *Document) HTML(pageNumber int) (string, error) {
 	C.fz_bound_page(f.ctx, page, &bounds)
 
 	var ctm C.fz_matrix
-	C.fz_scale(&ctm, C.float(300.0/72), C.float(300.0/72))
-
-	C.fz_transform_rect(&bounds, &ctm)
+	C.fz_scale(&ctm, C.float(72.0/72), C.float(72.0/72))
 
 	text := C.fz_new_stext_page(f.ctx, &bounds)
 	defer C.fz_drop_stext_page(f.ctx, text)
 
 	var opts C.fz_stext_options
-	opts.flags = 0
+	opts.flags = C.FZ_STEXT_PRESERVE_IMAGES
 
 	device := C.fz_new_stext_device(f.ctx, text, &opts)
 	defer C.fz_drop_device(f.ctx, device)
@@ -250,17 +248,23 @@ func (f *Document) HTML(pageNumber int) (string, error) {
 	var cookie C.fz_cookie
 	C.fz_run_page(f.ctx, page, device, &ctm, &cookie)
 
-	buf := C.fz_new_buffer(f.ctx, C.FZ_STORE_UNLIMITED)
+	C.fz_close_device(f.ctx, device)
+
+	buf := C.fz_new_buffer(f.ctx, 1024)
 	defer C.fz_drop_buffer(f.ctx, buf)
 
 	out := C.fz_new_output_with_buffer(f.ctx, buf)
-	C.fz_print_stext_page_as_xhtml(f.ctx, out, text)
+	if header {
+		C.fz_print_stext_header_as_html(f.ctx, out)
+	}
+	C.fz_print_stext_page_as_html(f.ctx, out, text)
+	if header {
+		C.fz_print_stext_trailer_as_html(f.ctx, out)
+	}
 
-	str := C.fz_string_from_buffer(f.ctx, buf)
+	str := C.GoString(C.fz_string_from_buffer(f.ctx, buf))
 
-	C.fz_close_device(f.ctx, device)
-
-	return C.GoString(str), nil
+	return str, nil
 }
 
 // Close closes the underlying fitz document.
