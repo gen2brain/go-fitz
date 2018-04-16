@@ -60,4 +60,24 @@ func ExampleNew() {
 
 		f.Close()
 	}
+
+	// Extract pages as html
+	for n := 0; n < doc.NumPage(); n++ {
+		html, err := doc.HTML(n)
+		if err != nil {
+			panic(err)
+		}
+
+		f, err := os.Create(filepath.Join(tmpDir, fmt.Sprintf("test%03d.html", n)))
+		if err != nil {
+			panic(err)
+		}
+
+		_, err = f.WriteString(html)
+		if err != nil {
+			panic(err)
+		}
+
+		f.Close()
+	}
 }

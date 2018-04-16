@@ -114,3 +114,36 @@ func TestText(t *testing.T) {
 		f.Close()
 	}
 }
+
+func TestHTML(t *testing.T) {
+	doc, err := New(filepath.Join("testdata", "test.pdf"))
+	if err != nil {
+		t.Error(err)
+	}
+
+	defer doc.Close()
+
+	tmpDir, err := ioutil.TempDir(os.TempDir(), "fitz")
+	if err != nil {
+		t.Error(err)
+	}
+
+	for n := 0; n < doc.NumPage(); n++ {
+		html, err := doc.HTML(n)
+		if err != nil {
+			t.Error(err)
+		}
+
+		f, err := os.Create(filepath.Join(tmpDir, fmt.Sprintf("test%03d.html", n)))
+		if err != nil {
+			t.Error(err)
+		}
+
+		_, err = f.WriteString(html)
+		if err != nil {
+			t.Error(err)
+		}
+
+		f.Close()
+	}
+}

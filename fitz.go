@@ -221,6 +221,48 @@ func (f *Document) Text(pageNumber int) (string, error) {
 	return C.GoString(str), nil
 }
 
+// HTML returns html for given page number.
+func (f *Document) HTML(pageNumber int) (string, error) {
+	if pageNumber >= f.NumPage() {
+		return "", ErrPageMissing
+	}
+
+	page := C.fz_load_page(f.ctx, f.doc, C.int(pageNumber))
+	defer C.fz_drop_page(f.ctx, page)
+
+	var bounds C.fz_rect
+	C.fz_bound_page(f.ctx, page, &bounds)
+
+	var ctm C.fz_matrix
+	C.fz_scale(&ctm, C.float(300.0/72), C.float(300.0/72))
+
+	C.fz_transform_rect(&bounds, &ctm)
+
+	text := C.fz_new_stext_page(f.ctx, &bounds)
+	defer C.fz_drop_stext_page(f.ctx, text)
+
+	var opts C.fz_stext_options
+	opts.flags = 0
+
+	device := C.fz_new_stext_device(f.ctx, text, &opts)
+	defer C.fz_drop_device(f.ctx, device)
+
+	var cookie C.fz_cookie
+	C.fz_run_page(f.ctx, page, device, &ctm, &cookie)
+
+	buf := C.fz_new_buffer(f.ctx, C.FZ_STORE_UNLIMITED)
+	defer C.fz_drop_buffer(f.ctx, buf)
+
+	out := C.fz_new_output_with_buffer(f.ctx, buf)
+	C.fz_print_stext_page_as_xhtml(f.ctx, out, text)
+
+	str := C.fz_string_from_buffer(f.ctx, buf)
+
+	C.fz_close_device(f.ctx, device)
+
+	return C.GoString(str), nil
+}
+
 // Close closes the underlying fitz document.
 func (f *Document) Close() error {
 	C.fz_drop_document(f.ctx, f.doc)

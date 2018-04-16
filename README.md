@@ -5,7 +5,7 @@
 [![Go Report Card](https://goreportcard.com/badge/github.com/gen2brain/go-fitz?branch=master)](https://goreportcard.com/report/github.com/gen2brain/go-fitz)
 
 Go wrapper for [MuPDF](http://mupdf.com/) fitz library 
-that can extract pages from PDF, EPUB and XPS documents as images or text.
+that can extract pages from PDF, EPUB and XPS documents as images, text or html.
 
 ### Install
 
@@ -75,6 +75,26 @@ func main() {
 		}
 
 		_, err = f.WriteString(text)
+		if err != nil {
+			panic(err)
+		}
+
+		f.Close()
+	}
+
+	// Extract pages as html
+	for n := 0; n < doc.NumPage(); n++ {
+		html, err := doc.HTML(n)
+		if err != nil {
+			panic(err)
+		}
+
+		f, err := os.Create(filepath.Join(tmpDir, fmt.Sprintf("test%03d.html", n)))
+		if err != nil {
+			panic(err)
+		}
+
+		_, err = f.WriteString(html)
 		if err != nil {
 			panic(err)
 		}
