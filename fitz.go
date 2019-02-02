@@ -38,6 +38,7 @@ type Document struct {
 	ctx *C.struct_fz_context_s
 	doc *C.struct_fz_document_s
 	mtx sync.Mutex
+	img image.RGBA
 }
 
 // New returns new fitz document.
@@ -165,6 +166,7 @@ func (f *Document) Image(pageNumber int) (image.Image, error) {
 	defer C.fz_drop_pixmap(f.ctx, pixmap)
 
 	device := C.fz_new_draw_device(f.ctx, &ctm, pixmap)
+	C.fz_enable_device_hints(f.ctx, device, C.FZ_NO_CACHE)
 	defer C.fz_drop_device(f.ctx, device)
 
 	drawMatrix := C.fz_identity
@@ -177,11 +179,11 @@ func (f *Document) Image(pageNumber int) (image.Image, error) {
 		return nil, ErrPixmapSamples
 	}
 
-	rect := image.Rect(int(bbox.x0), int(bbox.y0), int(bbox.x1), int(bbox.y1))
-	bytes := C.GoBytes(unsafe.Pointer(pixels), C.int(4*bbox.x1*bbox.y1))
-	img := &image.RGBA{Pix: bytes, Stride: 4 * rect.Max.X, Rect: rect}
+	f.img.Pix = C.GoBytes(unsafe.Pointer(pixels), C.int(4*bbox.x1*bbox.y1))
+	f.img.Rect = image.Rect(int(bbox.x0), int(bbox.y0), int(bbox.x1), int(bbox.y1))
+	f.img.Stride = 4 * f.img.Rect.Max.X
 
-	return img, nil
+	return &f.img, nil
 }
 
 // Text returns text for given page number.
@@ -209,6 +211,7 @@ func (f *Document) Text(pageNumber int) (string, error) {
 	opts.flags = 0
 
 	device := C.fz_new_stext_device(f.ctx, text, &opts)
+	C.fz_enable_device_hints(f.ctx, device, C.FZ_NO_CACHE)
 	defer C.fz_drop_device(f.ctx, device)
 
 	var cookie C.fz_cookie
@@ -253,6 +256,7 @@ func (f *Document) HTML(pageNumber int, header bool) (string, error) {
 	opts.flags = C.FZ_STEXT_PRESERVE_IMAGES
 
 	device := C.fz_new_stext_device(f.ctx, text, &opts)
+	C.fz_enable_device_hints(f.ctx, device, C.FZ_NO_CACHE)
 	defer C.fz_drop_device(f.ctx, device)
 
 	var cookie C.fz_cookie
@@ -305,7 +309,8 @@ func (f *Document) SVG(pageNumber int) (string, error) {
 	defer C.fz_drop_output(f.ctx, out)
 
 	device := C.fz_new_svg_device(f.ctx, out, bounds.x1-bounds.x0, bounds.y1-bounds.y0, C.FZ_SVG_TEXT_AS_PATH, 1)
-	//defer C.fz_drop_device(f.ctx, device)
+	C.fz_enable_device_hints(f.ctx, device, C.FZ_NO_CACHE)
+	defer C.fz_drop_device(f.ctx, device)
 
 	var cookie C.fz_cookie
 	C.fz_run_page(f.ctx, page, device, &ctm, &cookie)
