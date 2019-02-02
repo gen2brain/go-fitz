@@ -17,6 +17,7 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"sync"
 	"unsafe"
 )
 
@@ -36,6 +37,7 @@ var (
 type Document struct {
 	ctx *C.struct_fz_context_s
 	doc *C.struct_fz_document_s
+	mtx sync.Mutex
 }
 
 // New returns new fitz document.
@@ -134,6 +136,9 @@ func (f *Document) NumPage() int {
 
 // Image returns image for given page number.
 func (f *Document) Image(pageNumber int) (image.Image, error) {
+	f.mtx.Lock()
+	defer f.mtx.Unlock()
+
 	if pageNumber >= f.NumPage() {
 		return nil, ErrPageMissing
 	}
@@ -181,6 +186,9 @@ func (f *Document) Image(pageNumber int) (image.Image, error) {
 
 // Text returns text for given page number.
 func (f *Document) Text(pageNumber int) (string, error) {
+	f.mtx.Lock()
+	defer f.mtx.Unlock()
+
 	if pageNumber >= f.NumPage() {
 		return "", ErrPageMissing
 	}
@@ -222,6 +230,9 @@ func (f *Document) Text(pageNumber int) (string, error) {
 
 // HTML returns html for given page number.
 func (f *Document) HTML(pageNumber int, header bool) (string, error) {
+	f.mtx.Lock()
+	defer f.mtx.Unlock()
+
 	if pageNumber >= f.NumPage() {
 		return "", ErrPageMissing
 	}
@@ -270,6 +281,9 @@ func (f *Document) HTML(pageNumber int, header bool) (string, error) {
 
 // SVG returns svg document for given page number.
 func (f *Document) SVG(pageNumber int) (string, error) {
+	f.mtx.Lock()
+	defer f.mtx.Unlock()
+
 	if pageNumber >= f.NumPage() {
 		return "", ErrPageMissing
 	}
