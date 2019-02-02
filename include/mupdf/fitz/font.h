@@ -72,7 +72,6 @@ typedef struct
 
 	unsigned int fake_bold : 1; /* synthesize bold */
 	unsigned int fake_italic : 1; /* synthesize italic */
-	unsigned int force_hinting : 1; /* force hinting for DynaLab fonts */
 	unsigned int has_opentype : 1; /* has opentype shaping tables */
 	unsigned int invalid_bbox : 1;
 } fz_font_flags_t;
@@ -441,6 +440,11 @@ fz_font *fz_new_font_from_buffer(fz_context *ctx, const char *name, fz_buffer *b
 	Returns new font handle, or throws exception on error.
 */
 fz_font *fz_new_font_from_file(fz_context *ctx, const char *name, const char *path, int index, int use_glyph_bbox);
+
+/* Create a new font from one of the built-in fonts. */
+fz_font *fz_new_base14_font(fz_context *ctx, const char *name);
+fz_font *fz_new_cjk_font(fz_context *ctx, int registry, int serif, int wmode);
+fz_font *fz_new_builtin_font(fz_context *ctx, const char *name, int is_bold, int is_italic);
 
 /*
 	Add a reference to an existing fz_font.

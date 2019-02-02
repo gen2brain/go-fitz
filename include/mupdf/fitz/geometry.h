@@ -125,6 +125,12 @@ struct fz_point_s
 	float x, y;
 };
 
+static inline fz_point fz_make_point(float x, float y)
+{
+	fz_point p = { x, y };
+	return p;
+}
+
 /*
 	fz_rect is a rectangle represented by two diagonally opposite
 	corners at arbitrary coordinates.
@@ -149,6 +155,12 @@ struct fz_rect_s
 	float x0, y0;
 	float x1, y1;
 };
+
+static inline fz_rect fz_make_rect(float x0, float y0, float x1, float y1)
+{
+	fz_rect r = { x0, y0, x1, y1 };
+	return r;
+}
 
 /*
 	fz_rect_min: get the minimum point from a rectangle as a fz_point.
@@ -177,6 +189,12 @@ struct fz_irect_s
 	int x0, y0;
 	int x1, y1;
 };
+
+static inline fz_irect fz_make_irect(int x0, int y0, int x1, int y1)
+{
+	fz_irect r = { x0, y0, x1, y1 };
+	return r;
+}
 
 /*
 	A rectangle with sides of length one.
@@ -268,6 +286,12 @@ struct fz_matrix_s
 	fz_identity: Identity transform matrix.
 */
 extern const fz_matrix fz_identity;
+
+static inline fz_matrix fz_make_matrix(float a, float b, float c, float d, float e, float f)
+{
+	fz_matrix m = { a, b, c, d, e, f };
+	return m;
+}
 
 static inline fz_matrix *fz_copy_matrix(fz_matrix *restrict m, const fz_matrix *restrict s)
 {
@@ -537,6 +561,7 @@ fz_rect *fz_rect_from_irect(fz_rect *restrict rect, const fz_irect *restrict bbo
 	fz_expand_rect: Expand a bbox by a given amount in all directions.
 */
 fz_rect *fz_expand_rect(fz_rect *b, float expand);
+fz_irect *fz_expand_irect(fz_irect *a, int expand);
 
 /*
 	fz_include_point_in_rect: Expand a bbox to include a given point.
@@ -551,6 +576,7 @@ fz_rect *fz_include_point_in_rect(fz_rect *r, const fz_point *p);
 
 	Translate a bbox by a given x and y offset. Allows for overflow.
 */
+fz_rect *fz_translate_rect(fz_rect *a, float xoff, float yoff);
 fz_irect *fz_translate_irect(fz_irect *a, int xoff, int yoff);
 
 /*

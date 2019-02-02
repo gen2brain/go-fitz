@@ -4,8 +4,7 @@
 [![GoDoc](https://godoc.org/github.com/gen2brain/go-fitz?status.svg)](https://godoc.org/github.com/gen2brain/go-fitz)
 [![Go Report Card](https://goreportcard.com/badge/github.com/gen2brain/go-fitz?branch=master)](https://goreportcard.com/report/github.com/gen2brain/go-fitz)
 
-Go wrapper for [MuPDF](http://mupdf.com/) fitz library 
-that can extract pages from PDF, EPUB and XPS documents as images, text, html or svg.
+Go wrapper for [MuPDF](http://mupdf.com/) fitz library that can extract pages from PDF and EPUB documents as images, text, html or svg.
 
 ### Install
 
@@ -14,7 +13,7 @@ that can extract pages from PDF, EPUB and XPS documents as images, text, html or
 ### Build tags
 
 * `extlib` - use external MuPDF library
-* `gcc7` - if you get error on Linux `recompile with -fPIC` try adding this tag
+* `nopie` - use this with GCC older then 7
     
 ### Example
 ```go
