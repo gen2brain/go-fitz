@@ -3,6 +3,8 @@ language: go
 go:
   - 1.11.x
 
-script:
+install:
  - go get -tags nopie -t -v ./...
+
+script:
  - go test -tags nopie -v ./
