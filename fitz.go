@@ -38,7 +38,6 @@ type Document struct {
 	ctx *C.struct_fz_context_s
 	doc *C.struct_fz_document_s
 	mtx sync.Mutex
-	img image.RGBA
 }
 
 // New returns new fitz document.
@@ -145,6 +144,8 @@ func (f *Document) ImageDPI(pageNumber int, dpi float64) (image.Image, error) {
 	f.mtx.Lock()
 	defer f.mtx.Unlock()
 
+	img := image.RGBA{}
+
 	if pageNumber >= f.NumPage() {
 		return nil, ErrPageMissing
 	}
@@ -184,11 +185,11 @@ func (f *Document) ImageDPI(pageNumber int, dpi float64) (image.Image, error) {
 		return nil, ErrPixmapSamples
 	}
 
-	f.img.Pix = C.GoBytes(unsafe.Pointer(pixels), C.int(4*bbox.x1*bbox.y1))
-	f.img.Rect = image.Rect(int(bbox.x0), int(bbox.y0), int(bbox.x1), int(bbox.y1))
-	f.img.Stride = 4 * f.img.Rect.Max.X
+	img.Pix = C.GoBytes(unsafe.Pointer(pixels), C.int(4*bbox.x1*bbox.y1))
+	img.Rect = image.Rect(int(bbox.x0), int(bbox.y0), int(bbox.x1), int(bbox.y1))
+	img.Stride = 4 * img.Rect.Max.X
 
-	return &f.img, nil
+	return &img, nil
 }
 
 // Text returns text for given page number.
