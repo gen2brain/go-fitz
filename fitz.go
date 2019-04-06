@@ -1,5 +1,5 @@
 // Package fitz provides wrapper for the [MuPDF](http://mupdf.com/) fitz library
-// that can extract pages from PDF, EPUB and XPS documents as images or text.
+// that can extract pages from PDF and EPUB documents as images, text, html or svg.
 package fitz
 
 /*
@@ -205,6 +205,54 @@ func (f *Document) ImageDPI(pageNumber int, dpi float64) (image.Image, error) {
 	img.Stride = 4 * img.Rect.Max.X
 
 	return &img, nil
+}
+
+// ImagePNG returns image for given page number as PNG bytes.
+func (f *Document) ImagePNG(pageNumber int, dpi float64) ([]byte, error) {
+	f.mtx.Lock()
+	defer f.mtx.Unlock()
+
+	if pageNumber >= f.NumPage() {
+		return nil, ErrPageMissing
+	}
+
+	page := C.fz_load_page(f.ctx, f.doc, C.int(pageNumber))
+	defer C.fz_drop_page(f.ctx, page)
+
+	var bounds C.fz_rect
+	C.fz_bound_page(f.ctx, page, &bounds)
+
+	var ctm C.fz_matrix
+	C.fz_scale(&ctm, C.float(dpi/72), C.float(dpi/72))
+
+	var bbox C.fz_irect
+	C.fz_transform_rect(&bounds, &ctm)
+	C.fz_round_rect(&bbox, &bounds)
+
+	pixmap := C.fz_new_pixmap_with_bbox(f.ctx, C.fz_device_rgb(f.ctx), &bbox, nil, 1)
+	if pixmap == nil {
+		return nil, ErrCreatePixmap
+	}
+
+	C.fz_clear_pixmap_with_value(f.ctx, pixmap, C.int(0xff))
+	defer C.fz_drop_pixmap(f.ctx, pixmap)
+
+	device := C.fz_new_draw_device(f.ctx, &ctm, pixmap)
+	C.fz_enable_device_hints(f.ctx, device, C.FZ_NO_CACHE)
+	defer C.fz_drop_device(f.ctx, device)
+
+	drawMatrix := C.fz_identity
+	C.fz_run_page(f.ctx, page, device, &drawMatrix, nil)
+
+	C.fz_close_device(f.ctx, device, file)
+
+	buf := C.fz_new_buffer_from_pixmap_as_png(f.ctx, pixmap, nil)
+	defer C.fz_drop_buffer(f.ctx, buf)
+
+	size := C.fz_buffer_storage(f.ctx, buf, nil)
+	str := C.GoStringN(C.fz_string_from_buffer(f.ctx, buf), C.int(size))
+
+	return []byte(str), nil
 }
 
 // Text returns text for given page number.
