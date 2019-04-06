@@ -243,9 +243,6 @@ func (f *Document) Text(pageNumber int) (string, error) {
 	buf := C.fz_new_buffer_from_stext_page(f.ctx, text)
 	defer C.fz_drop_buffer(f.ctx, buf)
 
-	out := C.fz_new_output_with_buffer(f.ctx, buf)
-	defer C.fz_drop_output(f.ctx, out)
-
 	str := C.GoString(C.fz_string_from_buffer(f.ctx, buf))
 
 	return str, nil
