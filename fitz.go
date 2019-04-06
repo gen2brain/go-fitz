@@ -31,6 +31,7 @@ var (
 	ErrCreatePixmap  = errors.New("fitz: cannot create pixmap")
 	ErrPixmapSamples = errors.New("fitz: cannot get pixmap samples")
 	ErrNeedsPassword = errors.New("fitz: document needs password")
+	ErrLoadOutline   = errors.New("fitz: cannot load outline")
 )
 
 // Document represents fitz document.
@@ -38,6 +39,20 @@ type Document struct {
 	ctx *C.struct_fz_context_s
 	doc *C.struct_fz_document_s
 	mtx sync.Mutex
+}
+
+// Outline type.
+type Outline struct {
+	// Hierarchy level of the entry (starting from 1).
+	Level int
+	// Title of outline item.
+	Title string
+	// Destination in the document to be displayed when this outline item is activated.
+	URI string
+	// The page number of an internal link.
+	Page int
+	// Top.
+	Top float64
 }
 
 // New returns new fitz document.
@@ -325,6 +340,67 @@ func (f *Document) SVG(pageNumber int) (string, error) {
 	str := C.GoString(C.fz_string_from_buffer(f.ctx, buf))
 
 	return str, nil
+}
+
+// ToC returns the table of contents (also known as outline).
+func (f *Document) ToC() ([]Outline, error) {
+	data := make([]Outline, 0)
+
+	outline := C.fz_load_outline(f.ctx, f.doc)
+	if outline == nil {
+		return nil, ErrLoadOutline
+	}
+	defer C.fz_drop_outline(f.ctx, outline)
+
+	var walk func(outline *C.fz_outline, level int)
+
+	walk = func(outline *C.fz_outline, level int) {
+		for outline != nil {
+			res := Outline{}
+			res.Level = level
+			res.Title = C.GoString(outline.title)
+			res.URI = C.GoString(outline.uri)
+			res.Page = int(outline.page)
+			res.Top = float64(outline.y)
+			data = append(data, res)
+
+			if outline.down != nil {
+				walk(outline.down, level+1)
+			}
+			outline = outline.next
+		}
+	}
+
+	walk(outline, 1)
+	return data, nil
+}
+
+// Metadata returns the map with standard metadata.
+func (f *Document) Metadata() map[string]string {
+	data := make(map[string]string)
+
+	lookup := func(key string) string {
+		ckey := C.CString(key)
+		defer C.free(unsafe.Pointer(ckey))
+
+		buf := make([]byte, 256)
+		C.fz_lookup_metadata(f.ctx, f.doc, ckey, (*C.char)(unsafe.Pointer(&buf[0])), C.int(len(buf)))
+
+		return string(buf)
+	}
+
+	data["format"] = lookup("format")
+	data["encryption"] = lookup("encryption")
+	data["title"] = lookup("info:Title")
+	data["author"] = lookup("info:Author")
+	data["subject"] = lookup("info:Subject")
+	data["keywords"] = lookup("info:Keywords")
+	data["creator"] = lookup("info:Creator")
+	data["producer"] = lookup("info:Producer")
+	data["creationDate"] = lookup("info:CreationDate")
+	data["modDate"] = lookup("info:modDate")
+
+	return data
 }
 
 // Close closes the underlying fitz document.

@@ -180,3 +180,31 @@ func TestSVG(t *testing.T) {
 		f.Close()
 	}
 }
+
+func TestToC(t *testing.T) {
+	doc, err := New(filepath.Join("testdata", "test.pdf"))
+	if err != nil {
+		t.Error(err)
+	}
+
+	defer doc.Close()
+
+	_, err = doc.ToC()
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestMetadata(t *testing.T) {
+	doc, err := New(filepath.Join("testdata", "test.pdf"))
+	if err != nil {
+		t.Error(err)
+	}
+
+	defer doc.Close()
+
+	meta := doc.Metadata()
+	if len(meta) == 0 {
+		t.Error(fmt.Errorf("metadata is empty"))
+	}
+}
