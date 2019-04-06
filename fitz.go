@@ -244,7 +244,7 @@ func (f *Document) ImagePNG(pageNumber int, dpi float64) ([]byte, error) {
 	drawMatrix := C.fz_identity
 	C.fz_run_page(f.ctx, page, device, &drawMatrix, nil)
 
-	C.fz_close_device(f.ctx, device, file)
+	C.fz_close_device(f.ctx, device)
 
 	buf := C.fz_new_buffer_from_pixmap_as_png(f.ctx, pixmap, nil)
 	defer C.fz_drop_buffer(f.ctx, buf)
