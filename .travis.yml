@@ -4,7 +4,7 @@ go:
   - 1.12.x
 
 install:
- - go get -t -v ./...
+ - go get -tags nopie -t -v ./...
 
 script:
- - go test -v ./
+ - go test -tags nopie -v ./
