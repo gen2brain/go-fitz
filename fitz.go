@@ -232,6 +232,7 @@ func (f *Document) ImageReadDPI(pageNumber int, dpi float64, img *image.RGBA) er
 		return ErrBufferSize
 	}
 	ptr := (*[1 << 20]byte)(unsafe.Pointer(pixels))[:]
+	img.Pix = img.Pix[:int(4*bbox.x1*bbox.y1)]
 	copy(img.Pix, ptr)
 	img.Rect = image.Rect(int(bbox.x0), int(bbox.y0), int(bbox.x1), int(bbox.y1))
 	img.Stride = 4 * img.Rect.Max.X
