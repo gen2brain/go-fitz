@@ -2,6 +2,7 @@ package fitz
 
 import (
 	"fmt"
+	"image"
 	"image/jpeg"
 	"io/ioutil"
 	"os"
@@ -34,6 +35,42 @@ func TestImage(t *testing.T) {
 		}
 
 		err = jpeg.Encode(f, img, &jpeg.Options{Quality: jpeg.DefaultQuality})
+		if err != nil {
+			t.Error(err)
+		}
+
+		f.Close()
+	}
+}
+
+func TestImagePreallocated(t *testing.T) {
+	doc, err := New(filepath.Join("testdata", "test.pdf"))
+	if err != nil {
+		t.Error(err)
+	}
+
+	defer doc.Close()
+
+	tmpDir, err := ioutil.TempDir(os.TempDir(), "fitz")
+	if err != nil {
+		t.Error(err)
+	}
+
+	size := doc.MaxImageSize(300.0)
+	img := image.RGBA{
+		Pix: make([]byte, size),
+	}
+	for n := 0; n < doc.NumPage(); n++ {
+		if err := doc.ImageReadDPI(n, 300.0, &img); err != nil {
+			t.Error(err)
+		}
+
+		f, err := os.Create(filepath.Join(tmpDir, fmt.Sprintf("test%03d.jpg", n)))
+		if err != nil {
+			t.Error(err)
+		}
+
+		err = jpeg.Encode(f, &img, &jpeg.Options{Quality: jpeg.DefaultQuality})
 		if err != nil {
 			t.Error(err)
 		}
