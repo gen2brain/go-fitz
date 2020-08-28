@@ -56,12 +56,12 @@ func TestImagePreallocated(t *testing.T) {
 		t.Error(err)
 	}
 
-	size := doc.MaxImageSize(300.0)
+	size := doc.MaxImageSize()
 	img := image.RGBA{
 		Pix: make([]byte, size),
 	}
 	for n := 0; n < doc.NumPage(); n++ {
-		if err := doc.ImageReadDPI(n, 300.0, &img); err != nil {
+		if err := doc.ImageReadDPI(n, &img); err != nil {
 			t.Error(err)
 		}
 

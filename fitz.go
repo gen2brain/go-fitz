@@ -151,7 +151,7 @@ func (f *Document) NumPage() int {
 }
 
 // MaxImageSize returns the maximum image size in bytes at a given resolution.
-func (f *Document) MaxImageSize(dpi float64) int {
+func (f *Document) MaxImageSize() int {
 	var maxSize int
 	f.mtx.Lock()
 	defer f.mtx.Unlock()
@@ -165,8 +165,6 @@ func (f *Document) MaxImageSize(dpi float64) int {
 		C.fz_bound_page(f.ctx, page, &bounds)
 
 		var ctm C.fz_matrix
-		C.fz_scale(&ctm, C.float(dpi/72), C.float(dpi/72))
-
 		var bbox C.fz_irect
 		C.fz_transform_rect(&bounds, &ctm)
 		C.fz_round_rect(&bbox, &bounds)
@@ -185,7 +183,7 @@ func (f *Document) Image(pageNumber int) (image.Image, error) {
 }
 
 // ImageReadDPI reads a PDF page into a preallocate image.
-func (f *Document) ImageReadDPI(pageNumber int, dpi float64, img *image.RGBA) error {
+func (f *Document) ImageReadDPI(pageNumber int, img *image.RGBA) error {
 	f.mtx.Lock()
 	defer f.mtx.Unlock()
 
@@ -200,8 +198,6 @@ func (f *Document) ImageReadDPI(pageNumber int, dpi float64, img *image.RGBA) er
 	C.fz_bound_page(f.ctx, page, &bounds)
 
 	var ctm C.fz_matrix
-	C.fz_scale(&ctm, C.float(dpi/72), C.float(dpi/72))
-
 	var bbox C.fz_irect
 	C.fz_transform_rect(&bounds, &ctm)
 	C.fz_round_rect(&bbox, &bounds)
