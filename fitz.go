@@ -39,6 +39,7 @@ type Document struct {
 	ctx *C.struct_fz_context_s
 	doc *C.struct_fz_document_s
 	mtx sync.Mutex
+	stream *C.fz_stream
 }
 
 // Outline type.
@@ -121,6 +122,7 @@ func NewFromMemory(b []byte) (f *Document, err error) {
 	if f.doc == nil {
 		err = ErrOpenDocument
 	}
+	f.stream = stream
 
 	ret := C.fz_needs_password(f.ctx, f.doc)
 	v := bool(int(ret) != 0)
@@ -452,8 +454,14 @@ func (f *Document) Metadata() map[string]string {
 func (f *Document) Close() error {
 	C.fz_drop_document(f.ctx, f.doc)
 	C.fz_drop_context(f.ctx)
+
+	if f.stream != nil {
+		C.fz_drop_stream(f.ctx, f.stream)
+	}
+
 	return nil
 }
+
 
 // contentType returns document MIME type.
 func contentType(b []byte) string {
