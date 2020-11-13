@@ -109,8 +109,9 @@ func NewFromMemory(b []byte) (f *Document, err error) {
 
 	data := (*C.uchar)(C.CBytes(b))
 
-	stream := C.fz_open_memory(f.ctx, data, C.size_t(len(b)))
-	if stream == nil {
+	f.stream = C.fz_open_memory(f.ctx, data, C.size_t(len(b)))
+
+	if f.stream == nil {
 		err = ErrOpenMemory
 		return
 	}
@@ -118,11 +119,10 @@ func NewFromMemory(b []byte) (f *Document, err error) {
 	cmagic := C.CString(contentType(b))
 	defer C.free(unsafe.Pointer(cmagic))
 
-	f.doc = C.fz_open_document_with_stream(f.ctx, cmagic, stream)
+	f.doc = C.fz_open_document_with_stream(f.ctx, cmagic, f.stream)
 	if f.doc == nil {
 		err = ErrOpenDocument
 	}
-	f.stream = stream
 
 	ret := C.fz_needs_password(f.ctx, f.doc)
 	v := bool(int(ret) != 0)
