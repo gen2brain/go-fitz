@@ -36,9 +36,10 @@ var (
 
 // Document represents fitz document.
 type Document struct {
-	ctx *C.struct_fz_context_s
-	doc *C.struct_fz_document_s
+	ctx *C.struct_fz_context
+	doc *C.struct_fz_document
 	mtx sync.Mutex
+	stream *C.fz_stream
 }
 
 // Outline type.
@@ -69,7 +70,7 @@ func New(filename string) (f *Document, err error) {
 		return
 	}
 
-	f.ctx = (*C.struct_fz_context_s)(unsafe.Pointer(C.fz_new_context_imp(nil, nil, C.FZ_STORE_UNLIMITED, C.fz_version)))
+	f.ctx = (*C.struct_fz_context)(unsafe.Pointer(C.fz_new_context_imp(nil, nil, C.FZ_STORE_UNLIMITED, C.fz_version)))
 	if f.ctx == nil {
 		err = ErrCreateContext
 		return
@@ -98,7 +99,7 @@ func New(filename string) (f *Document, err error) {
 func NewFromMemory(b []byte) (f *Document, err error) {
 	f = &Document{}
 
-	f.ctx = (*C.struct_fz_context_s)(unsafe.Pointer(C.fz_new_context_imp(nil, nil, C.FZ_STORE_UNLIMITED, C.fz_version)))
+	f.ctx = (*C.struct_fz_context)(unsafe.Pointer(C.fz_new_context_imp(nil, nil, C.FZ_STORE_UNLIMITED, C.fz_version)))
 	if f.ctx == nil {
 		err = ErrCreateContext
 		return
@@ -106,10 +107,9 @@ func NewFromMemory(b []byte) (f *Document, err error) {
 
 	C.fz_register_document_handlers(f.ctx)
 
-	data := (*C.uchar)(C.CBytes(b))
+	f.stream = C.fz_open_memory(f.ctx, (*C.uchar)(&b[0]), C.size_t(len(b)))
 
-	stream := C.fz_open_memory(f.ctx, data, C.size_t(len(b)))
-	if stream == nil {
+	if f.stream == nil {
 		err = ErrOpenMemory
 		return
 	}
@@ -117,7 +117,7 @@ func NewFromMemory(b []byte) (f *Document, err error) {
 	cmagic := C.CString(contentType(b))
 	defer C.free(unsafe.Pointer(cmagic))
 
-	f.doc = C.fz_open_document_with_stream(f.ctx, cmagic, stream)
+	f.doc = C.fz_open_document_with_stream(f.ctx, cmagic, f.stream)
 	if f.doc == nil {
 		err = ErrOpenDocument
 	}
@@ -452,8 +452,14 @@ func (f *Document) Metadata() map[string]string {
 func (f *Document) Close() error {
 	C.fz_drop_document(f.ctx, f.doc)
 	C.fz_drop_context(f.ctx)
+
+	if f.stream != nil {
+		C.fz_drop_stream(f.ctx, f.stream)
+	}
+
 	return nil
 }
+
 
 // contentType returns document MIME type.
 func contentType(b []byte) string {
