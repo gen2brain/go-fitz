@@ -36,8 +36,8 @@ var (
 
 // Document represents fitz document.
 type Document struct {
-	ctx *C.struct_fz_context_s
-	doc *C.struct_fz_document_s
+	ctx *C.struct_fz_context
+	doc *C.struct_fz_document
 	mtx sync.Mutex
 	stream *C.fz_stream
 }
@@ -70,7 +70,7 @@ func New(filename string) (f *Document, err error) {
 		return
 	}
 
-	f.ctx = (*C.struct_fz_context_s)(unsafe.Pointer(C.fz_new_context_imp(nil, nil, C.FZ_STORE_UNLIMITED, C.fz_version)))
+	f.ctx = (*C.struct_fz_context)(unsafe.Pointer(C.fz_new_context_imp(nil, nil, C.FZ_STORE_UNLIMITED, C.fz_version)))
 	if f.ctx == nil {
 		err = ErrCreateContext
 		return
@@ -99,7 +99,7 @@ func New(filename string) (f *Document, err error) {
 func NewFromMemory(b []byte) (f *Document, err error) {
 	f = &Document{}
 
-	f.ctx = (*C.struct_fz_context_s)(unsafe.Pointer(C.fz_new_context_imp(nil, nil, C.FZ_STORE_UNLIMITED, C.fz_version)))
+	f.ctx = (*C.struct_fz_context)(unsafe.Pointer(C.fz_new_context_imp(nil, nil, C.FZ_STORE_UNLIMITED, C.fz_version)))
 	if f.ctx == nil {
 		err = ErrCreateContext
 		return
@@ -107,9 +107,7 @@ func NewFromMemory(b []byte) (f *Document, err error) {
 
 	C.fz_register_document_handlers(f.ctx)
 
-	data := (*C.uchar)(C.CBytes(b))
-
-	f.stream = C.fz_open_memory(f.ctx, data, C.size_t(len(b)))
+	f.stream = C.fz_open_memory(f.ctx, (*C.uchar)(&b[0]), C.size_t(len(b)))
 
 	if f.stream == nil {
 		err = ErrOpenMemory
