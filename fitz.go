@@ -83,6 +83,7 @@ func New(filename string) (f *Document, err error) {
 	f.doc = C.fz_open_document(f.ctx, cfilename)
 	if f.doc == nil {
 		err = ErrOpenDocument
+		return
 	}
 
 	ret := C.fz_needs_password(f.ctx, f.doc)
