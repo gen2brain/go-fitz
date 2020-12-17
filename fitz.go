@@ -107,7 +107,8 @@ func NewFromMemory(b []byte) (f *Document, err error) {
 
 	C.fz_register_document_handlers(f.ctx)
 
-	f.stream = C.fz_open_memory(f.ctx, (*C.uchar)(&b[0]), C.size_t(len(b)))
+	stream := C.fz_open_memory(f.ctx, (*C.uchar)(&b[0]), C.size_t(len(b)))
+	f.stream = C.fz_keep_stream(f.ctx, stream)
 
 	if f.stream == nil {
 		err = ErrOpenMemory
@@ -450,12 +451,12 @@ func (f *Document) Metadata() map[string]string {
 
 // Close closes the underlying fitz document.
 func (f *Document) Close() error {
-	C.fz_drop_document(f.ctx, f.doc)
-	C.fz_drop_context(f.ctx)
-
 	if f.stream != nil {
 		C.fz_drop_stream(f.ctx, f.stream)
 	}
+
+	C.fz_drop_document(f.ctx, f.doc)
+	C.fz_drop_context(f.ctx)
 
 	return nil
 }
