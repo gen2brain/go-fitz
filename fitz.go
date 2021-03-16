@@ -129,6 +129,8 @@ func NewFromMemory(b []byte) (f *Document, err error) {
 		err = ErrOpenDocument
 	}
 
+	C.fz_drop_stream(f.ctx, stream)
+
 	ret := C.fz_needs_password(f.ctx, f.doc)
 	v := bool(int(ret) != 0)
 	if v {
