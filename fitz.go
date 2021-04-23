@@ -36,9 +36,10 @@ var (
 
 // Document represents fitz document.
 type Document struct {
-	ctx *C.struct_fz_context_s
-	doc *C.struct_fz_document_s
-	mtx sync.Mutex
+	ctx  *C.struct_fz_context_s
+	doc  *C.struct_fz_document_s
+	data *C.uchar
+	mtx  sync.Mutex
 }
 
 // Outline type.
@@ -107,9 +108,9 @@ func NewFromMemory(b []byte) (f *Document, err error) {
 
 	C.fz_register_document_handlers(f.ctx)
 
-	data := (*C.uchar)(C.CBytes(b))
+	f.data = (*C.uchar)(C.CBytes(b))
 
-	stream := C.fz_open_memory(f.ctx, data, C.size_t(len(b)))
+	stream := C.fz_open_memory(f.ctx, f.data, C.size_t(len(b)))
 	if stream == nil {
 		err = ErrOpenMemory
 		return
@@ -459,6 +460,7 @@ func (f *Document) Metadata() map[string]string {
 
 // Close closes the underlying fitz document.
 func (f *Document) Close() error {
+	C.free(unsafe.Pointer(f.data))
 	C.fz_drop_document(f.ctx, f.doc)
 	C.fz_drop_context(f.ctx)
 	return nil
