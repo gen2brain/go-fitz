@@ -1,11 +1,13 @@
-dist: focal
+dist: bionic
 language: go
 
 go:
   - 1.16.x
 
-install:
- - go get -t -v ./...
+gobuild_args: "-tags 'extlib compat pkgconfig'"
+
+before_install:
+   - sudo apt-get install libmupdf-dev
 
 script:
- - go build
+ - go test -tags 'extlib compat pkgconfig' -v ./
