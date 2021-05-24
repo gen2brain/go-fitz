@@ -14,7 +14,7 @@ Go wrapper for [MuPDF](http://mupdf.com/) fitz library that can extract pages fr
 
 * `extlib` - use external MuPDF library
 * `static` - build with static external MuPDF library (used with `extlib`)
-* `nopie` - use this with GCC older then 7
+* `compat` - enable compat mode (for versions < 1.14.x, used with `extlib`)
     
 ### Example
 ```go
