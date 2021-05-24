@@ -72,6 +72,18 @@ func New(filename string) (f *Document, err error) {
 		return
 	}
 
+	b, e := ioutil.ReadFile(filename)
+	if e != nil {
+		err = ErrOpenDocument
+		return
+	}
+
+	magic := contentType(b)
+	if magic == "" {
+		err = ErrOpenDocument
+		return
+	}
+
 	f.ctx = (*C.struct_fz_context)(unsafe.Pointer(C.fz_new_context_imp(nil, nil, C.FZ_STORE_UNLIMITED, C.fz_version)))
 	if f.ctx == nil {
 		err = ErrCreateContext
