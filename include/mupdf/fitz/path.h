@@ -5,7 +5,7 @@
 #include "mupdf/fitz/context.h"
 #include "mupdf/fitz/geometry.h"
 
-/*
+/**
  * Vector path buffer.
  * It can be stroked and dashed, or be filled.
  * It has a fill rule (nonzero or even_odd).
@@ -14,10 +14,9 @@
  * into the Global Edge List.
  */
 
-typedef struct fz_path_s fz_path;
-typedef struct fz_stroke_state_s fz_stroke_state;
+typedef struct fz_path fz_path;
 
-typedef enum fz_linecap_e
+typedef enum
 {
 	FZ_LINECAP_BUTT = 0,
 	FZ_LINECAP_ROUND = 1,
@@ -25,7 +24,7 @@ typedef enum fz_linecap_e
 	FZ_LINECAP_TRIANGLE = 3
 } fz_linecap;
 
-typedef enum fz_linejoin_e
+typedef enum
 {
 	FZ_LINEJOIN_MITER = 0,
 	FZ_LINEJOIN_ROUND = 1,
@@ -33,7 +32,7 @@ typedef enum fz_linejoin_e
 	FZ_LINEJOIN_MITER_XPS = 3
 } fz_linejoin;
 
-struct fz_stroke_state_s
+typedef struct
 {
 	int refs;
 	fz_linecap start_cap, dash_cap, end_cap;
@@ -43,7 +42,7 @@ struct fz_stroke_state_s
 	float dash_phase;
 	int dash_len;
 	float dash_list[32];
-};
+} fz_stroke_state;
 
 typedef struct
 {
@@ -59,8 +58,8 @@ typedef struct
 	void (*rectto)(fz_context *ctx, void *arg, float x1, float y1, float x2, float y2);
 } fz_path_walker;
 
-/*
-	fz_walk_path: Walk the segments of a path, calling the
+/**
+	Walk the segments of a path, calling the
 	appropriate callback function from a given set for each
 	segment of the path.
 
@@ -79,59 +78,50 @@ typedef struct
 */
 void fz_walk_path(fz_context *ctx, const fz_path *path, const fz_path_walker *walker, void *arg);
 
-/*
-	fz_new_path: Create an empty path, and return
-	a reference to it.
-
-	Throws exception on failure to allocate.
+/**
+	Create a new (empty) path structure.
 */
 fz_path *fz_new_path(fz_context *ctx);
 
-/*
-	fz_keep_path: Take an additional reference to
-	a path.
+/**
+	Increment the reference count. Returns the same pointer.
 
-	No modifications should be carried out on a path
-	to which more than one reference is held, as
-	this can cause race conditions.
+	All paths can be kept, regardless of their packing type.
 
 	Never throws exceptions.
 */
 fz_path *fz_keep_path(fz_context *ctx, const fz_path *path);
 
-/*
-	fz_drop_path: Drop a reference to a path,
-	destroying the path if it is the last
-	reference.
+/**
+	Decrement the reference count. When the reference count hits
+	zero, free the path.
+
+	All paths can be dropped, regardless of their packing type.
+	Packed paths do not own the blocks into which they are packed
+	so dropping them does not free those blocks.
 
 	Never throws exceptions.
 */
 void fz_drop_path(fz_context *ctx, const fz_path *path);
 
-/*
-	fz_trim_path: Minimise the internal storage
-	used by a path.
+/**
+	Minimise the internal storage used by a path.
 
 	As paths are constructed, the internal buffers
 	grow. To avoid repeated reallocations they
 	grow with some spare space. Once a path has
 	been fully constructed, this call allows the
 	excess space to be trimmed.
-
-	Never throws exceptions.
 */
 void fz_trim_path(fz_context *ctx, fz_path *path);
 
-/*
-	fz_packed_path_size: Return the number of
-	bytes required to pack a path.
-
-	Never throws exceptions.
+/**
+	Return the number of bytes required to pack a path.
 */
 int fz_packed_path_size(const fz_path *path);
 
-/*
-	fz_pack_path: Pack a path into the given block.
+/**
+	Pack a path into the given block.
 	To minimise the size of paths, this function allows them to be
 	packed into a buffer with other information. Paths can be used
 	interchangeably regardless of how they are packed.
@@ -170,10 +160,10 @@ int fz_packed_path_size(const fz_path *path);
 	or 'flat' packed. Simply pack a path (if required), and then
 	forget about the details.
 */
-int fz_pack_path(fz_context *ctx, uint8_t *pack, int max, const fz_path *path);
+size_t fz_pack_path(fz_context *ctx, uint8_t *pack, size_t max, const fz_path *path);
 
-/*
-	fz_clone_path: Clone the data for a path.
+/**
+	Clone the data for a path.
 
 	This is used in preference to fz_keep_path when a whole
 	new copy of a path is required, rather than just a shared
@@ -186,39 +176,41 @@ int fz_pack_path(fz_context *ctx, uint8_t *pack, int max, const fz_path *path);
 */
 fz_path *fz_clone_path(fz_context *ctx, fz_path *path);
 
-/*
-	fz_currentpoint: Return the current point that a path has
+/**
+	Return the current point that a path has
 	reached or (0,0) if empty.
 
 	path: path to return the current point of.
 */
 fz_point fz_currentpoint(fz_context *ctx, fz_path *path);
 
-/*
-	fz_moveto: Append a 'moveto' command to a path.
+/**
+	Append a 'moveto' command to a path.
 	This 'opens' a path.
 
 	path: The path to modify.
 
 	x, y: The coordinate to move to.
 
-	Throws exceptions on failure to allocate.
+	Throws exceptions on failure to allocate, or attempting to
+	modify a packed path.
 */
 void fz_moveto(fz_context *ctx, fz_path *path, float x, float y);
 
-/*
-	fz_lineto: Append a 'lineto' command to an open path.
+/**
+	Append a 'lineto' command to an open path.
 
 	path: The path to modify.
 
 	x, y: The coordinate to line to.
 
-	Throws exceptions on failure to allocate.
+	Throws exceptions on failure to allocate, or attempting to
+	modify a packed path.
 */
 void fz_lineto(fz_context *ctx, fz_path *path, float x, float y);
 
-/*
-	fz_rectto: Append a 'rectto' command to an open path.
+/**
+	Append a 'rectto' command to an open path.
 
 	The rectangle is equivalent to:
 		moveto x0 y0
@@ -233,12 +225,13 @@ void fz_lineto(fz_context *ctx, fz_path *path, float x, float y);
 
 	x1, y1: Second corner of the rectangle.
 
-	Throws exceptions on failure to allocate.
+	Throws exceptions on failure to allocate, or attempting to
+	modify a packed path.
 */
 void fz_rectto(fz_context *ctx, fz_path *path, float x0, float y0, float x1, float y1);
 
-/*
-	fz_quadto: Append a 'quadto' command to an open path. (For a
+/**
+	Append a 'quadto' command to an open path. (For a
 	quadratic bezier).
 
 	path: The path to modify.
@@ -247,12 +240,13 @@ void fz_rectto(fz_context *ctx, fz_path *path, float x0, float y0, float x1, flo
 
 	x1, y1: The end coordinates for the quadratic curve.
 
-	Throws exceptions on failure to allocate.
+	Throws exceptions on failure to allocate, or attempting to
+	modify a packed path.
 */
 void fz_quadto(fz_context *ctx, fz_path *path, float x0, float y0, float x1, float y1);
 
-/*
-	fz_curveto: Append a 'curveto' command to an open path. (For a
+/**
+	Append a 'curveto' command to an open path. (For a
 	cubic bezier).
 
 	path: The path to modify.
@@ -265,12 +259,13 @@ void fz_quadto(fz_context *ctx, fz_path *path, float x0, float y0, float x1, flo
 
 	x2, y2: The end coordinates for the curve.
 
-	Throws exceptions on failure to allocate.
+	Throws exceptions on failure to allocate, or attempting to
+	modify a packed path.
 */
 void fz_curveto(fz_context *ctx, fz_path *path, float x0, float y0, float x1, float y1, float x2, float y2);
 
-/*
-	fz_curvetov: Append a 'curvetov' command to an open path. (For a
+/**
+	Append a 'curvetov' command to an open path. (For a
 	cubic bezier with the first control coordinate equal to
 	the start point).
 
@@ -281,12 +276,13 @@ void fz_curveto(fz_context *ctx, fz_path *path, float x0, float y0, float x1, fl
 
 	x2, y2: The end coordinates for the curve.
 
-	Throws exceptions on failure to allocate.
+	Throws exceptions on failure to allocate, or attempting to
+	modify a packed path.
 */
 void fz_curvetov(fz_context *ctx, fz_path *path, float x1, float y1, float x2, float y2);
 
-/*
-	fz_curvetoy: Append a 'curvetoy' command to an open path. (For a
+/**
+	Append a 'curvetoy' command to an open path. (For a
 	cubic bezier with the second control coordinate equal to
 	the end point).
 
@@ -298,22 +294,24 @@ void fz_curvetov(fz_context *ctx, fz_path *path, float x1, float y1, float x2, f
 	x2, y2: The end coordinates for the curve (and the second
 	control coordinate).
 
-	Throws exceptions on failure to allocate.
+	Throws exceptions on failure to allocate, or attempting to
+	modify a packed path.
 */
 void fz_curvetoy(fz_context *ctx, fz_path *path, float x0, float y0, float x2, float y2);
 
-/*
-	fz_closepath: Close the current subpath.
+/**
+	Close the current subpath.
 
 	path: The path to modify.
 
-	Throws exceptions on failure to allocate, and illegal
-	path closes (i.e. closing a non open path).
+	Throws exceptions on failure to allocate, attempting to modify
+	a packed path, and illegal path closes (i.e. closing a non open
+	path).
 */
 void fz_closepath(fz_context *ctx, fz_path *path);
 
-/*
-	fz_transform_path: Transform a path by a given
+/**
+	Transform a path by a given
 	matrix.
 
 	path: The path to modify (must not be a packed path).
@@ -323,10 +321,10 @@ void fz_closepath(fz_context *ctx, fz_path *path);
 	Throws exceptions if the path is packed, or on failure
 	to allocate.
 */
-void fz_transform_path(fz_context *ctx, fz_path *path, const fz_matrix *transform);
+void fz_transform_path(fz_context *ctx, fz_path *path, fz_matrix transform);
 
-/*
-	fz_bound_path: Return a bounding rectangle for a path.
+/**
+	Return a bounding rectangle for a path.
 
 	path: The path to bound.
 
@@ -341,23 +339,32 @@ void fz_transform_path(fz_context *ctx, fz_path *path, const fz_matrix *transfor
 
 	Returns r, updated to contain the bounding rectangle.
 */
-fz_rect *fz_bound_path(fz_context *ctx, const fz_path *path, const fz_stroke_state *stroke, const fz_matrix *ctm, fz_rect *r);
-fz_rect *fz_adjust_rect_for_stroke(fz_context *ctx, fz_rect *r, const fz_stroke_state *stroke, const fz_matrix *ctm);
+fz_rect fz_bound_path(fz_context *ctx, const fz_path *path, const fz_stroke_state *stroke, fz_matrix ctm);
 
+/**
+	Given a rectangle (assumed to be the bounding box for a path),
+	expand it to allow for the expansion of the bbox that would be
+	seen by stroking the path with the given stroke state and
+	transform.
+*/
+fz_rect fz_adjust_rect_for_stroke(fz_context *ctx, fz_rect rect, const fz_stroke_state *stroke, fz_matrix ctm);
+
+/**
+	A sane 'default' stroke state.
+*/
 extern const fz_stroke_state fz_default_stroke_state;
 
-/*
-	fz_new_stroke_state: Create a new (empty) stroke state
-	structure (with no dash data) and return a reference to it.
+/**
+	Create a new (empty) stroke state structure (with no dash
+	data) and return a reference to it.
 
 	Throws exception on failure to allocate.
 */
 fz_stroke_state *fz_new_stroke_state(fz_context *ctx);
 
-/*
-	fz_new_stroke_state_with_dash_len: Create a new (empty)
-	stroke state structure, with room for dash data of the
-	given length, and return a reference to it.
+/**
+	Create a new (empty) stroke state structure, with room for
+	dash data of the given length, and return a reference to it.
 
 	len: The number of dash elements to allow room for.
 
@@ -365,31 +372,24 @@ fz_stroke_state *fz_new_stroke_state(fz_context *ctx);
 */
 fz_stroke_state *fz_new_stroke_state_with_dash_len(fz_context *ctx, int len);
 
-/*
-	fz_keep_stroke_state: Take an additional reference to
-	a stroke state structure.
+/**
+	Take an additional reference to a stroke state structure.
 
 	No modifications should be carried out on a stroke
 	state to which more than one reference is held, as
 	this can cause race conditions.
-
-	Never throws exceptions.
 */
 fz_stroke_state *fz_keep_stroke_state(fz_context *ctx, const fz_stroke_state *stroke);
 
-/*
-	fz_drop_stroke_state: Drop a reference to a stroke
-	state structure, destroying the structure if it is
-	the last reference.
-
-	Never throws exceptions.
+/**
+	Drop a reference to a stroke state structure, destroying the
+	structure if it is the last reference.
 */
 void fz_drop_stroke_state(fz_context *ctx, const fz_stroke_state *stroke);
 
-/*
-	fz_unshare_stroke_state: Given a reference to a
-	(possibly) shared stroke_state structure, return
-	a reference to an equivalent stroke_state structure
+/**
+	Given a reference to a (possibly) shared stroke_state structure,
+	return a reference to an equivalent stroke_state structure
 	that is guaranteed to be unshared (i.e. one that can
 	safely be modified).
 
@@ -403,12 +403,11 @@ void fz_drop_stroke_state(fz_context *ctx, const fz_stroke_state *stroke);
 */
 fz_stroke_state *fz_unshare_stroke_state(fz_context *ctx, fz_stroke_state *shared);
 
-/*
-	fz_unshare_stroke_state_with_dash_len: Given a reference to a
-	(possibly) shared stroke_state structure, return a reference
-	to a stroke_state structure (with room for a given amount of
-	dash data) that is guaranteed to be unshared (i.e. one that
-	can safely be modified).
+/**
+	Given a reference to a (possibly) shared stroke_state structure,
+	return a reference to a stroke_state structure (with room for a
+	given amount of dash data) that is guaranteed to be unshared
+	(i.e. one that can safely be modified).
 
 	shared: The reference to a (possibly) shared structure
 	to unshare. Ownership of this reference is passed in
@@ -420,9 +419,9 @@ fz_stroke_state *fz_unshare_stroke_state(fz_context *ctx, fz_stroke_state *share
 */
 fz_stroke_state *fz_unshare_stroke_state_with_dash_len(fz_context *ctx, fz_stroke_state *shared, int len);
 
-/*
-	fz_clone_stroke_state: Create an identical stroke_state
-	structure and return a reference to it.
+/**
+	Create an identical stroke_state structure and return a
+	reference to it.
 
 	stroke: The stroke state reference to clone.
 
