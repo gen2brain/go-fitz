@@ -4,10 +4,8 @@ language: go
 go:
   - 1.16.x
 
-gobuild_args: "-tags 'extlib static compat'"
-
-before_install:
-   - sudo apt-get install libmupdf-dev
+install:
+ - go get -t -v ./...
 
 script:
- - go test -tags 'extlib static compat' -v ./
+ - go build
