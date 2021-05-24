@@ -1,3 +1,5 @@
+// +build !compat
+
 // Package fitz provides wrapper for the [MuPDF](http://mupdf.com/) fitz library
 // that can extract pages from PDF and EPUB documents as images, text, html or svg.
 package fitz
@@ -36,9 +38,10 @@ var (
 
 // Document represents fitz document.
 type Document struct {
-	ctx *C.struct_fz_context_s
-	doc *C.struct_fz_document_s
-	mtx sync.Mutex
+	ctx    *C.struct_fz_context
+	doc    *C.struct_fz_document
+	mtx    sync.Mutex
+	stream *C.fz_stream
 }
 
 // Outline type.
@@ -69,7 +72,7 @@ func New(filename string) (f *Document, err error) {
 		return
 	}
 
-	f.ctx = (*C.struct_fz_context_s)(unsafe.Pointer(C.fz_new_context_imp(nil, nil, C.FZ_STORE_UNLIMITED, C.fz_version)))
+	f.ctx = (*C.struct_fz_context)(unsafe.Pointer(C.fz_new_context_imp(nil, nil, C.FZ_STORE_UNLIMITED, C.fz_version)))
 	if f.ctx == nil {
 		err = ErrCreateContext
 		return
@@ -99,7 +102,7 @@ func New(filename string) (f *Document, err error) {
 func NewFromMemory(b []byte) (f *Document, err error) {
 	f = &Document{}
 
-	f.ctx = (*C.struct_fz_context_s)(unsafe.Pointer(C.fz_new_context_imp(nil, nil, C.FZ_STORE_UNLIMITED, C.fz_version)))
+	f.ctx = (*C.struct_fz_context)(unsafe.Pointer(C.fz_new_context_imp(nil, nil, C.FZ_STORE_UNLIMITED, C.fz_version)))
 	if f.ctx == nil {
 		err = ErrCreateContext
 		return
@@ -107,10 +110,10 @@ func NewFromMemory(b []byte) (f *Document, err error) {
 
 	C.fz_register_document_handlers(f.ctx)
 
-	data := (*C.uchar)(C.CBytes(b))
+	stream := C.fz_open_memory(f.ctx, (*C.uchar)(&b[0]), C.size_t(len(b)))
+	f.stream = C.fz_keep_stream(f.ctx, stream)
 
-	stream := C.fz_open_memory(f.ctx, data, C.size_t(len(b)))
-	if stream == nil {
+	if f.stream == nil {
 		err = ErrOpenMemory
 		return
 	}
@@ -124,12 +127,10 @@ func NewFromMemory(b []byte) (f *Document, err error) {
 	cmagic := C.CString(magic)
 	defer C.free(unsafe.Pointer(cmagic))
 
-	f.doc = C.fz_open_document_with_stream(f.ctx, cmagic, stream)
+	f.doc = C.fz_open_document_with_stream(f.ctx, cmagic, f.stream)
 	if f.doc == nil {
 		err = ErrOpenDocument
 	}
-
-	C.fz_drop_stream(f.ctx, stream)
 
 	ret := C.fz_needs_password(f.ctx, f.doc)
 	v := bool(int(ret) != 0)
@@ -178,16 +179,16 @@ func (f *Document) ImageDPI(pageNumber int, dpi float64) (image.Image, error) {
 	defer C.fz_drop_page(f.ctx, page)
 
 	var bounds C.fz_rect
-	C.fz_bound_page(f.ctx, page, &bounds)
+	bounds = C.fz_bound_page(f.ctx, page)
 
 	var ctm C.fz_matrix
-	C.fz_scale(&ctm, C.float(dpi/72), C.float(dpi/72))
+	ctm = C.fz_scale(C.float(dpi/72), C.float(dpi/72))
 
 	var bbox C.fz_irect
-	C.fz_transform_rect(&bounds, &ctm)
-	C.fz_round_rect(&bbox, &bounds)
+	bounds = C.fz_transform_rect(bounds, ctm)
+	bbox = C.fz_round_rect(bounds)
 
-	pixmap := C.fz_new_pixmap_with_bbox(f.ctx, C.fz_device_rgb(f.ctx), &bbox, nil, 1)
+	pixmap := C.fz_new_pixmap_with_bbox(f.ctx, C.fz_device_rgb(f.ctx), bbox, nil, 1)
 	if pixmap == nil {
 		return nil, ErrCreatePixmap
 	}
@@ -195,12 +196,12 @@ func (f *Document) ImageDPI(pageNumber int, dpi float64) (image.Image, error) {
 	C.fz_clear_pixmap_with_value(f.ctx, pixmap, C.int(0xff))
 	defer C.fz_drop_pixmap(f.ctx, pixmap)
 
-	device := C.fz_new_draw_device(f.ctx, &ctm, pixmap)
+	device := C.fz_new_draw_device(f.ctx, ctm, pixmap)
 	C.fz_enable_device_hints(f.ctx, device, C.FZ_NO_CACHE)
 	defer C.fz_drop_device(f.ctx, device)
 
 	drawMatrix := C.fz_identity
-	C.fz_run_page(f.ctx, page, device, &drawMatrix, nil)
+	C.fz_run_page(f.ctx, page, device, drawMatrix, nil)
 
 	C.fz_close_device(f.ctx, device)
 
@@ -229,16 +230,16 @@ func (f *Document) ImagePNG(pageNumber int, dpi float64) ([]byte, error) {
 	defer C.fz_drop_page(f.ctx, page)
 
 	var bounds C.fz_rect
-	C.fz_bound_page(f.ctx, page, &bounds)
+	bounds = C.fz_bound_page(f.ctx, page)
 
 	var ctm C.fz_matrix
-	C.fz_scale(&ctm, C.float(dpi/72), C.float(dpi/72))
+	ctm = C.fz_scale(C.float(dpi/72), C.float(dpi/72))
 
 	var bbox C.fz_irect
-	C.fz_transform_rect(&bounds, &ctm)
-	C.fz_round_rect(&bbox, &bounds)
+	bounds = C.fz_transform_rect(bounds, ctm)
+	bbox = C.fz_round_rect(bounds)
 
-	pixmap := C.fz_new_pixmap_with_bbox(f.ctx, C.fz_device_rgb(f.ctx), &bbox, nil, 1)
+	pixmap := C.fz_new_pixmap_with_bbox(f.ctx, C.fz_device_rgb(f.ctx), bbox, nil, 1)
 	if pixmap == nil {
 		return nil, ErrCreatePixmap
 	}
@@ -246,16 +247,16 @@ func (f *Document) ImagePNG(pageNumber int, dpi float64) ([]byte, error) {
 	C.fz_clear_pixmap_with_value(f.ctx, pixmap, C.int(0xff))
 	defer C.fz_drop_pixmap(f.ctx, pixmap)
 
-	device := C.fz_new_draw_device(f.ctx, &ctm, pixmap)
+	device := C.fz_new_draw_device(f.ctx, ctm, pixmap)
 	C.fz_enable_device_hints(f.ctx, device, C.FZ_NO_CACHE)
 	defer C.fz_drop_device(f.ctx, device)
 
 	drawMatrix := C.fz_identity
-	C.fz_run_page(f.ctx, page, device, &drawMatrix, nil)
+	C.fz_run_page(f.ctx, page, device, drawMatrix, nil)
 
 	C.fz_close_device(f.ctx, device)
 
-	buf := C.fz_new_buffer_from_pixmap_as_png(f.ctx, pixmap, nil)
+	buf := C.fz_new_buffer_from_pixmap_as_png(f.ctx, pixmap, C.fz_default_color_params)
 	defer C.fz_drop_buffer(f.ctx, buf)
 
 	size := C.fz_buffer_storage(f.ctx, buf, nil)
@@ -277,12 +278,12 @@ func (f *Document) Text(pageNumber int) (string, error) {
 	defer C.fz_drop_page(f.ctx, page)
 
 	var bounds C.fz_rect
-	C.fz_bound_page(f.ctx, page, &bounds)
+	bounds = C.fz_bound_page(f.ctx, page)
 
 	var ctm C.fz_matrix
-	C.fz_scale(&ctm, C.float(72.0/72), C.float(72.0/72))
+	ctm = C.fz_scale(C.float(72.0/72), C.float(72.0/72))
 
-	text := C.fz_new_stext_page(f.ctx, &bounds)
+	text := C.fz_new_stext_page(f.ctx, bounds)
 	defer C.fz_drop_stext_page(f.ctx, text)
 
 	var opts C.fz_stext_options
@@ -293,7 +294,7 @@ func (f *Document) Text(pageNumber int) (string, error) {
 	defer C.fz_drop_device(f.ctx, device)
 
 	var cookie C.fz_cookie
-	C.fz_run_page(f.ctx, page, device, &ctm, &cookie)
+	C.fz_run_page(f.ctx, page, device, ctm, &cookie)
 
 	C.fz_close_device(f.ctx, device)
 
@@ -318,12 +319,12 @@ func (f *Document) HTML(pageNumber int, header bool) (string, error) {
 	defer C.fz_drop_page(f.ctx, page)
 
 	var bounds C.fz_rect
-	C.fz_bound_page(f.ctx, page, &bounds)
+	bounds = C.fz_bound_page(f.ctx, page)
 
 	var ctm C.fz_matrix
-	C.fz_scale(&ctm, C.float(72.0/72), C.float(72.0/72))
+	ctm = C.fz_scale(C.float(72.0/72), C.float(72.0/72))
 
-	text := C.fz_new_stext_page(f.ctx, &bounds)
+	text := C.fz_new_stext_page(f.ctx, bounds)
 	defer C.fz_drop_stext_page(f.ctx, text)
 
 	var opts C.fz_stext_options
@@ -334,7 +335,7 @@ func (f *Document) HTML(pageNumber int, header bool) (string, error) {
 	defer C.fz_drop_device(f.ctx, device)
 
 	var cookie C.fz_cookie
-	C.fz_run_page(f.ctx, page, device, &ctm, &cookie)
+	C.fz_run_page(f.ctx, page, device, ctm, &cookie)
 
 	C.fz_close_device(f.ctx, device)
 
@@ -347,7 +348,7 @@ func (f *Document) HTML(pageNumber int, header bool) (string, error) {
 	if header {
 		C.fz_print_stext_header_as_html(f.ctx, out)
 	}
-	C.fz_print_stext_page_as_html(f.ctx, out, text)
+	C.fz_print_stext_page_as_html(f.ctx, out, text, C.int(pageNumber))
 	if header {
 		C.fz_print_stext_trailer_as_html(f.ctx, out)
 	}
@@ -370,11 +371,11 @@ func (f *Document) SVG(pageNumber int) (string, error) {
 	defer C.fz_drop_page(f.ctx, page)
 
 	var bounds C.fz_rect
-	C.fz_bound_page(f.ctx, page, &bounds)
+	bounds = C.fz_bound_page(f.ctx, page)
 
 	var ctm C.fz_matrix
-	C.fz_scale(&ctm, C.float(72.0/72), C.float(72.0/72))
-	C.fz_transform_rect(&bounds, &ctm)
+	ctm = C.fz_scale(C.float(72.0/72), C.float(72.0/72))
+	bounds = C.fz_transform_rect(bounds, ctm)
 
 	buf := C.fz_new_buffer(f.ctx, 1024)
 	defer C.fz_drop_buffer(f.ctx, buf)
@@ -387,7 +388,7 @@ func (f *Document) SVG(pageNumber int) (string, error) {
 	defer C.fz_drop_device(f.ctx, device)
 
 	var cookie C.fz_cookie
-	C.fz_run_page(f.ctx, page, device, &ctm, &cookie)
+	C.fz_run_page(f.ctx, page, device, ctm, &cookie)
 
 	C.fz_close_device(f.ctx, device)
 
@@ -459,8 +460,13 @@ func (f *Document) Metadata() map[string]string {
 
 // Close closes the underlying fitz document.
 func (f *Document) Close() error {
+	if f.stream != nil {
+		C.fz_drop_stream(f.ctx, f.stream)
+	}
+
 	C.fz_drop_document(f.ctx, f.doc)
 	C.fz_drop_context(f.ctx)
+
 	return nil
 }
 
