@@ -14,5 +14,6 @@ package fitz
 #cgo windows,386 LDFLAGS: -L${SRCDIR}/libs -lmupdf_windows_386 -lmupdfthird_windows_386 -lm -lcomdlg32 -lgdi32 -lmsvcr90
 #cgo windows,amd64 LDFLAGS: -L${SRCDIR}/libs -lmupdf_windows_amd64 -lmupdfthird_windows_amd64 -lm -lcomdlg32 -lgdi32
 #cgo darwin,amd64 LDFLAGS: -L${SRCDIR}/libs -lmupdf_darwin_amd64 -lmupdfthird_darwin_amd64 -lm
+#cgo darwin,arm64 LDFLAGS: -L${SRCDIR}/libs -lmupdf_darwin_arm64 -lmupdfthird_darwin_arm64 -lm
 */
 import "C"
