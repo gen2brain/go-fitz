@@ -1,3 +1,4 @@
+//go:build !compat
 // +build !compat
 
 // Package fitz provides wrapper for the [MuPDF](http://mupdf.com/) fitz library
