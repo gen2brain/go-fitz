@@ -16,6 +16,7 @@ Go wrapper for [MuPDF](http://mupdf.com/) fitz library that can extract pages fr
 * `static` - build with static external MuPDF library (used with `extlib`)
 * `compat` - enable compat mode (for versions < 1.14.x, used with `extlib`)
 * `pkgconfig` - enable pkg-config (used with `extlib`)
+* `musl` - use musl compiled library (Linux amd64 only)
     
 ### Example
 ```go
