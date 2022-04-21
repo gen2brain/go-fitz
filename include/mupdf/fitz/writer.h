@@ -1,3 +1,25 @@
+// Copyright (C) 2004-2021 Artifex Software, Inc.
+//
+// This file is part of MuPDF.
+//
+// MuPDF is free software: you can redistribute it and/or modify it under the
+// terms of the GNU Affero General Public License as published by the Free
+// Software Foundation, either version 3 of the License, or (at your option)
+// any later version.
+//
+// MuPDF is distributed in the hope that it will be useful, but WITHOUT ANY
+// WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+// FOR A PARTICULAR PURPOSE. See the GNU Affero General Public License for more
+// details.
+//
+// You should have received a copy of the GNU Affero General Public License
+// along with MuPDF. If not, see <https://www.gnu.org/licenses/agpl-3.0.en.html>
+//
+// Alternative licensing terms are available from the licensor.
+// For commercial licensing, see <https://www.artifex.com/> or contact
+// Artifex Software, Inc., 1305 Grant Avenue - Suite 200, Novato,
+// CA 94945, U.S.A., +1(415)492-9861, for further information.
+
 #ifndef MUPDF_FITZ_WRITER_H
 #define MUPDF_FITZ_WRITER_H
 
@@ -82,7 +104,7 @@ size_t fz_copy_option(fz_context *ctx, const char *val, char *dest, size_t maxle
 	path: The document name to write (or NULL for default)
 
 	format: Which format to write (currently cbz, html, pdf, pam,
-	pbm, pgm, pkm, png, ppm, pnm, svg, text, xhtml)
+	pbm, pgm, pkm, png, ppm, pnm, svg, text, xhtml, docx, odt)
 
 	options: NULL, or pointer to comma separated string to control
 	file generation.
@@ -98,6 +120,11 @@ fz_new_document_writer_with_output(fz_context *ctx, fz_output *out, const char *
 
 /**
 	Document writers for various possible output formats.
+
+	All of the "_with_output" variants pass the ownership of out in
+	immediately upon calling. The writers are responsible for
+	dropping the fz_output when they are finished with it (even
+	if they throw an exception during creation).
 */
 fz_document_writer *fz_new_pdf_writer(fz_context *ctx, const char *path, const char *options);
 fz_document_writer *fz_new_pdf_writer_with_output(fz_context *ctx, fz_output *out, const char *options);
@@ -105,6 +132,11 @@ fz_document_writer *fz_new_svg_writer(fz_context *ctx, const char *path, const c
 
 fz_document_writer *fz_new_text_writer(fz_context *ctx, const char *format, const char *path, const char *options);
 fz_document_writer *fz_new_text_writer_with_output(fz_context *ctx, const char *format, fz_output *out, const char *options);
+
+fz_document_writer *fz_new_odt_writer(fz_context *ctx, const char *path, const char *options);
+fz_document_writer *fz_new_odt_writer_with_output(fz_context *ctx, fz_output *out, const char *options);
+fz_document_writer *fz_new_docx_writer(fz_context *ctx, const char *path, const char *options);
+fz_document_writer *fz_new_docx_writer_with_output(fz_context *ctx, fz_output *out, const char *options);
 
 fz_document_writer *fz_new_ps_writer(fz_context *ctx, const char *path, const char *options);
 fz_document_writer *fz_new_ps_writer_with_output(fz_context *ctx, fz_output *out, const char *options);
@@ -120,6 +152,7 @@ fz_document_writer *fz_new_cbz_writer_with_output(fz_context *ctx, fz_output *ou
 
 fz_document_writer *fz_new_pdfocr_writer(fz_context *ctx, const char *path, const char *options);
 fz_document_writer *fz_new_pdfocr_writer_with_output(fz_context *ctx, fz_output *out, const char *options);
+void fz_pdfocr_writer_set_progress(fz_context *ctx, fz_document_writer *writer, int (*progress)(fz_context *, void *, int), void *);
 
 fz_document_writer *fz_new_png_pixmap_writer(fz_context *ctx, const char *path, const char *options);
 fz_document_writer *fz_new_pam_pixmap_writer(fz_context *ctx, const char *path, const char *options);
@@ -174,13 +207,13 @@ void fz_drop_document_writer(fz_context *ctx, fz_document_writer *wri);
 fz_document_writer *fz_new_pixmap_writer(fz_context *ctx, const char *path, const char *options, const char *default_path, int n,
 	void (*save)(fz_context *ctx, fz_pixmap *pix, const char *filename));
 
-extern const char *fz_pdf_write_options_usage;
-extern const char *fz_svg_write_options_usage;
+FZ_DATA extern const char *fz_pdf_write_options_usage;
+FZ_DATA extern const char *fz_svg_write_options_usage;
 
-extern const char *fz_pcl_write_options_usage;
-extern const char *fz_pclm_write_options_usage;
-extern const char *fz_pwg_write_options_usage;
-extern const char *fz_pdfocr_write_options_usage;
+FZ_DATA extern const char *fz_pcl_write_options_usage;
+FZ_DATA extern const char *fz_pclm_write_options_usage;
+FZ_DATA extern const char *fz_pwg_write_options_usage;
+FZ_DATA extern const char *fz_pdfocr_write_options_usage;
 
 /* Implementation details: subject to change. */
 

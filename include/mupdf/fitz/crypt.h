@@ -1,3 +1,25 @@
+// Copyright (C) 2004-2021 Artifex Software, Inc.
+//
+// This file is part of MuPDF.
+//
+// MuPDF is free software: you can redistribute it and/or modify it under the
+// terms of the GNU Affero General Public License as published by the Free
+// Software Foundation, either version 3 of the License, or (at your option)
+// any later version.
+//
+// MuPDF is distributed in the hope that it will be useful, but WITHOUT ANY
+// WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+// FOR A PARTICULAR PURPOSE. See the GNU Affero General Public License for more
+// details.
+//
+// You should have received a copy of the GNU Affero General Public License
+// along with MuPDF. If not, see <https://www.gnu.org/licenses/agpl-3.0.en.html>
+//
+// Alternative licensing terms are available from the licensor.
+// For commercial licensing, see <https://www.artifex.com/> or contact
+// Artifex Software, Inc., 1305 Grant Avenue - Suite 200, Novato,
+// CA 94945, U.S.A., +1(415)492-9861, for further information.
+
 #ifndef MUPDF_FITZ_CRYPT_H
 #define MUPDF_FITZ_CRYPT_H
 
@@ -32,6 +54,14 @@ void fz_md5_init(fz_md5 *state);
 	Never throws an exception.
 */
 void fz_md5_update(fz_md5 *state, const unsigned char *input, size_t inlen);
+
+/**
+	MD5 block update operation. Continues an MD5 message-digest
+	operation, processing an int64, and updating the context.
+
+	Never throws an exception.
+*/
+void fz_md5_update_int64(fz_md5 *state, int64_t i);
 
 /**
 	MD5 finalization. Ends an MD5 message-digest operation, writing
@@ -197,8 +227,8 @@ void fz_arc4_final(fz_arc4 *state);
 typedef struct
 {
 	int nr; /* number of rounds */
-	unsigned long *rk; /* AES round keys */
-	unsigned long buf[68]; /* unaligned data */
+	uint32_t *rk; /* AES round keys */
+	uint32_t buf[68]; /* unaligned data */
 } fz_aes;
 
 #define FZ_AES_DECRYPT 0

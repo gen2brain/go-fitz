@@ -1,3 +1,25 @@
+// Copyright (C) 2004-2021 Artifex Software, Inc.
+//
+// This file is part of MuPDF.
+//
+// MuPDF is free software: you can redistribute it and/or modify it under the
+// terms of the GNU Affero General Public License as published by the Free
+// Software Foundation, either version 3 of the License, or (at your option)
+// any later version.
+//
+// MuPDF is distributed in the hope that it will be useful, but WITHOUT ANY
+// WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+// FOR A PARTICULAR PURPOSE. See the GNU Affero General Public License for more
+// details.
+//
+// You should have received a copy of the GNU Affero General Public License
+// along with MuPDF. If not, see <https://www.gnu.org/licenses/agpl-3.0.en.html>
+//
+// Alternative licensing terms are available from the licensor.
+// For commercial licensing, see <https://www.artifex.com/> or contact
+// Artifex Software, Inc., 1305 Grant Avenue - Suite 200, Novato,
+// CA 94945, U.S.A., +1(415)492-9861, for further information.
+
 #ifndef MUPDF_FITZ_IMAGE_H
 #define MUPDF_FITZ_IMAGE_H
 
@@ -25,12 +47,10 @@ typedef struct fz_pixmap_image fz_pixmap_image;
 
 	image: The image to retrieve a pixmap from.
 
-	color_params: The color parameters (or NULL for defaults).
-
 	subarea: The subarea of the image that we actually care about
 	(or NULL to indicate the whole image).
 
-	trans: Optional, unless subarea is given. If given, then on
+	ctm: Optional, unless subarea is given. If given, then on
 	entry this is the transform that will be applied to the complete
 	image. It should be updated on exit to the transform to apply to
 	the given subarea of the image. This is used to calculate the
@@ -45,6 +65,11 @@ typedef struct fz_pixmap_image fz_pixmap_image;
 	Returns a non NULL pixmap pointer. May throw exceptions.
 */
 fz_pixmap *fz_get_pixmap_from_image(fz_context *ctx, fz_image *image, const fz_irect *subarea, fz_matrix *ctm, int *w, int *h);
+
+/**
+	Calls fz_get_pixmap_from_image() with ctm, subarea, w and h all set to NULL.
+*/
+fz_pixmap *fz_get_unscaled_pixmap_from_image(fz_context *ctx, fz_image *image);
 
 /**
 	Increment the (normal) reference count for an image. Returns the
@@ -260,10 +285,14 @@ void fz_drop_image_imp(fz_context *ctx, fz_storable *image);
 void fz_drop_image_base(fz_context *ctx, fz_image *image);
 
 /**
-	Decode a subarea of a compressed image at a given l2factor
-	from the given stream.
+	Decode a subarea of a compressed image. l2factor is the amount
+	of subsampling inbuilt to the stream (i.e. performed by the
+	decoder). If non NULL, l2extra is the extra amount of
+	subsampling that should be performed by this routine. This will
+	be updated on exit to the amount of subsampling that is still
+	required to be done.
 */
-fz_pixmap *fz_decomp_image_from_stream(fz_context *ctx, fz_stream *stm, fz_compressed_image *image, fz_irect *subarea, int indexed, int l2factor);
+fz_pixmap *fz_decomp_image_from_stream(fz_context *ctx, fz_stream *stm, fz_compressed_image *image, fz_irect *subarea, int indexed, int l2factor, int *l2extra);
 
 /**
 	Convert pixmap from indexed to base colorspace.
@@ -301,6 +330,7 @@ struct fz_image
 	unsigned int invert_cmyk_jpeg:1;
 	unsigned int decoded:1;
 	unsigned int scalable:1;
+	uint8_t orientation;
 	fz_image *mask;
 	int xres; /* As given in the image, not necessarily as rendered */
 	int yres; /* As given in the image, not necessarily as rendered */
@@ -321,6 +351,33 @@ struct fz_image
 	if not encoded).
 */
 void fz_image_resolution(fz_image *image, int *xres, int *yres);
+
+/**
+	Request the natural orientation of an image.
+
+	This is for images (such as JPEG) that can contain internal
+	specifications of rotation/flips. This is ignored by all the
+	internal decode/rendering routines, but can be used by callers
+	(such as the image document handler) to respect such
+	specifications.
+
+	The values used by MuPDF are as follows, with the equivalent
+	Exif specifications given for information:
+
+	0: Undefined
+	1: 0 degree ccw rotation. (Exif = 1)
+	2: 90 degree ccw rotation. (Exif = 8)
+	3: 180 degree ccw rotation. (Exif = 3)
+	4: 270 degree ccw rotation. (Exif = 6)
+	5: flip on X. (Exif = 2)
+	6: flip on X, then rotate ccw by 90 degrees. (Exif = 5)
+	7: flip on X, then rotate ccw by 180 degrees. (Exif = 4)
+	8: flip on X, then rotate ccw by 270 degrees. (Exif = 7)
+*/
+uint8_t fz_image_orientation(fz_context *ctx, fz_image *image);
+
+fz_matrix
+fz_image_orientation_matrix(fz_context *ctx, fz_image *image);
 
 /**
 	Retrieve the underlying compressed data for an image.

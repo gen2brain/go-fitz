@@ -1,3 +1,25 @@
+// Copyright (C) 2004-2021 Artifex Software, Inc.
+//
+// This file is part of MuPDF.
+//
+// MuPDF is free software: you can redistribute it and/or modify it under the
+// terms of the GNU Affero General Public License as published by the Free
+// Software Foundation, either version 3 of the License, or (at your option)
+// any later version.
+//
+// MuPDF is distributed in the hope that it will be useful, but WITHOUT ANY
+// WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+// FOR A PARTICULAR PURPOSE. See the GNU Affero General Public License for more
+// details.
+//
+// You should have received a copy of the GNU Affero General Public License
+// along with MuPDF. If not, see <https://www.gnu.org/licenses/agpl-3.0.en.html>
+//
+// Alternative licensing terms are available from the licensor.
+// For commercial licensing, see <https://www.artifex.com/> or contact
+// Artifex Software, Inc., 1305 Grant Avenue - Suite 200, Novato,
+// CA 94945, U.S.A., +1(415)492-9861, for further information.
+
 #ifndef FZ_CONFIG_H
 
 #define FZ_CONFIG_H
@@ -33,6 +55,15 @@
 /* #define FZ_ENABLE_EPUB 1 */
 
 /**
+	Choose which document writers to include.
+	By default all are enabled. To avoid building unwanted
+	ones, define FZ_ENABLE_..._OUTPUT to 0.
+*/
+/* #define FZ_ENABLE_OCR_OUTPUT 1 */
+/* #define FZ_ENABLE_DOCX_OUTPUT 1 */
+/* #define FZ_ENABLE_ODT_OUTPUT 1 */
+
+/**
 	Choose whether to enable ICC color profiles.
 */
 /* #define FZ_ENABLE_ICC 1 */
@@ -62,10 +93,12 @@
 */
 /* To avoid all noto fonts except CJK, enable: */
 /* #define TOFU */
+#define TOFU 1
 
 /* To skip the CJK font, enable: (this implicitly enables TOFU_CJK_EXT
  * and TOFU_CJK_LANG) */
 /* #define TOFU_CJK */
+#define TOFU_CJK 1
 
 /* To skip CJK Extension A, enable: (this implicitly enables
  * TOFU_CJK_LANG) */
@@ -152,6 +185,18 @@
 #define FZ_ENABLE_EPUB 1
 #endif /* FZ_ENABLE_EPUB */
 
+#ifndef FZ_ENABLE_OCR_OUTPUT
+#define FZ_ENABLE_OCR_OUTPUT 1
+#endif /* FZ_ENABLE_OCR_OUTPUT */
+
+#ifndef FZ_ENABLE_ODT_OUTPUT
+#define FZ_ENABLE_ODT_OUTPUT 1
+#endif /* FZ_ENABLE_ODT_OUTPUT */
+
+#ifndef FZ_ENABLE_DOCX_OUTPUT
+#define FZ_ENABLE_DOCX_OUTPUT 1
+#endif /* FZ_ENABLE_DOCX_OUTPUT */
+
 #ifndef FZ_ENABLE_JPX
 #define FZ_ENABLE_JPX 1
 #endif /* FZ_ENABLE_JPX */
@@ -168,6 +213,12 @@
 #if FZ_ENABLE_HTML == 0 && FZ_ENABLE_EPUB == 0
 #undef TOFU_SIL
 #define TOFU_SIL
+#endif
+
+#if !defined(HAVE_LEPTONICA) || !defined(HAVE_TESSERACT)
+#ifndef OCR_DISABLED
+#define OCR_DISABLED
+#endif
 #endif
 
 #endif /* FZ_CONFIG_H */

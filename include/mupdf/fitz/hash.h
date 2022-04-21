@@ -1,9 +1,33 @@
+// Copyright (C) 2004-2021 Artifex Software, Inc.
+//
+// This file is part of MuPDF.
+//
+// MuPDF is free software: you can redistribute it and/or modify it under the
+// terms of the GNU Affero General Public License as published by the Free
+// Software Foundation, either version 3 of the License, or (at your option)
+// any later version.
+//
+// MuPDF is distributed in the hope that it will be useful, but WITHOUT ANY
+// WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+// FOR A PARTICULAR PURPOSE. See the GNU Affero General Public License for more
+// details.
+//
+// You should have received a copy of the GNU Affero General Public License
+// along with MuPDF. If not, see <https://www.gnu.org/licenses/agpl-3.0.en.html>
+//
+// Alternative licensing terms are available from the licensor.
+// For commercial licensing, see <https://www.artifex.com/> or contact
+// Artifex Software, Inc., 1305 Grant Avenue - Suite 200, Novato,
+// CA 94945, U.S.A., +1(415)492-9861, for further information.
+
 #ifndef MUPDF_FITZ_HASH_H
 #define MUPDF_FITZ_HASH_H
 
 #include "mupdf/fitz/system.h"
 #include "mupdf/fitz/context.h"
 #include "mupdf/fitz/output.h"
+
+#define FZ_HASH_TABLE_KEY_LENGTH 48
 
 /**
 	Generic hash-table with fixed-length keys.
@@ -85,5 +109,18 @@ typedef void (fz_hash_table_for_each_fn)(fz_context *ctx, void *state, void *key
 	Iterate over the entries in a hash table.
 */
 void fz_hash_for_each(fz_context *ctx, fz_hash_table *table, void *state, fz_hash_table_for_each_fn *callback);
+
+/**
+	Callback function called on each key/value pair in the hash
+	table, when fz_hash_filter is run to remove entries where the
+	callback returns true.
+*/
+typedef int (fz_hash_table_filter_fn)(fz_context *ctx, void *state, void *key, int keylen, void *val);
+
+/**
+	Iterate over the entries in a hash table, removing all the ones where callback returns true.
+	Does NOT free the value of the entry, so the caller is expected to take care of this.
+*/
+void fz_hash_filter(fz_context *ctx, fz_hash_table *table, void *state, fz_hash_table_filter_fn *callback);
 
 #endif

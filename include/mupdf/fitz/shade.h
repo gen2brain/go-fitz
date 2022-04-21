@@ -1,3 +1,25 @@
+// Copyright (C) 2004-2021 Artifex Software, Inc.
+//
+// This file is part of MuPDF.
+//
+// MuPDF is free software: you can redistribute it and/or modify it under the
+// terms of the GNU Affero General Public License as published by the Free
+// Software Foundation, either version 3 of the License, or (at your option)
+// any later version.
+//
+// MuPDF is distributed in the hope that it will be useful, but WITHOUT ANY
+// WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+// FOR A PARTICULAR PURPOSE. See the GNU Affero General Public License for more
+// details.
+//
+// You should have received a copy of the GNU Affero General Public License
+// along with MuPDF. If not, see <https://www.gnu.org/licenses/agpl-3.0.en.html>
+//
+// Alternative licensing terms are available from the licensor.
+// For commercial licensing, see <https://www.artifex.com/> or contact
+// Artifex Software, Inc., 1305 Grant Avenue - Suite 200, Novato,
+// CA 94945, U.S.A., +1(415)492-9861, for further information.
+
 #ifndef MUPDF_FITZ_SHADE_H
 #define MUPDF_FITZ_SHADE_H
 
@@ -107,6 +129,10 @@ void fz_drop_shade(fz_context *ctx, fz_shade *shade);
 */
 fz_rect fz_bound_shade(fz_context *ctx, fz_shade *shade, fz_matrix ctm);
 
+typedef struct fz_shade_color_cache fz_shade_color_cache;
+
+void fz_drop_shade_color_cache(fz_context *ctx, fz_shade_color_cache *cache);
+
 /**
 	Render a shade to a given pixmap.
 
@@ -124,9 +150,13 @@ fz_rect fz_bound_shade(fz_context *ctx, fz_shade *shade, fz_matrix ctm);
 	bbox: Pointer to a bounding box to limit the rendering
 	of the shade.
 
-	op: NULL, or pointer to overprint bitmap.
+	eop: NULL, or pointer to overprint bitmap.
+
+	cache: *cache is used to cache color information. If *cache is NULL it
+	is set to point to a new fz_shade_color_cache. If cache is NULL it is
+	ignored.
 */
-void fz_paint_shade(fz_context *ctx, fz_shade *shade, fz_colorspace *override_cs, fz_matrix ctm, fz_pixmap *dest, fz_color_params color_params, fz_irect bbox, const fz_overprint *eop);
+void fz_paint_shade(fz_context *ctx, fz_shade *shade, fz_colorspace *override_cs, fz_matrix ctm, fz_pixmap *dest, fz_color_params color_params, fz_irect bbox, const fz_overprint *eop, fz_shade_color_cache **cache);
 
 /**
  *	Handy routine for processing mesh based shades

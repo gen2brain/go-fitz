@@ -1,3 +1,25 @@
+// Copyright (C) 2004-2021 Artifex Software, Inc.
+//
+// This file is part of MuPDF.
+//
+// MuPDF is free software: you can redistribute it and/or modify it under the
+// terms of the GNU Affero General Public License as published by the Free
+// Software Foundation, either version 3 of the License, or (at your option)
+// any later version.
+//
+// MuPDF is distributed in the hope that it will be useful, but WITHOUT ANY
+// WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+// FOR A PARTICULAR PURPOSE. See the GNU Affero General Public License for more
+// details.
+//
+// You should have received a copy of the GNU Affero General Public License
+// along with MuPDF. If not, see <https://www.gnu.org/licenses/agpl-3.0.en.html>
+//
+// Alternative licensing terms are available from the licensor.
+// For commercial licensing, see <https://www.artifex.com/> or contact
+// Artifex Software, Inc., 1305 Grant Avenue - Suite 200, Novato,
+// CA 94945, U.S.A., +1(415)492-9861, for further information.
+
 #ifndef MUPDF_FITZ_STRUCTURED_TEXT_H
 #define MUPDF_FITZ_STRUCTURED_TEXT_H
 
@@ -8,20 +30,21 @@
 #include "mupdf/fitz/image.h"
 #include "mupdf/fitz/output.h"
 #include "mupdf/fitz/device.h"
+#include "mupdf/fitz/document.h"
 
 /**
 	Simple text layout (for use with annotation editing primarily).
 */
 typedef struct fz_layout_char
 {
-	float x, w;
+	float x, advance;
 	const char *p; /* location in source text of character */
 	struct fz_layout_char *next;
 } fz_layout_char;
 
 typedef struct fz_layout_line
 {
-	float x, y, h;
+	float x, y, font_size;
 	const char *p; /* location in source text of start of line */
 	fz_layout_char *text;
 	struct fz_layout_line *next;
@@ -96,6 +119,9 @@ typedef struct fz_stext_block fz_stext_block;
 	FZ_STEXT_PRESERVE_SPANS: If this option is set, spans on the same line
 	will not be merged. Each line will thus be a span of text with the same
 	font, colour, and size.
+
+	FZ_STEXT_MEDIABOX_CLIP: If this option is set, characters entirely
+	outside each page's mediabox will be ignored.
 */
 enum
 {
@@ -105,6 +131,7 @@ enum
 	FZ_STEXT_INHIBIT_SPACES = 8,
 	FZ_STEXT_DEHYPHENATE = 16,
 	FZ_STEXT_PRESERVE_SPANS = 32,
+	FZ_STEXT_MEDIABOX_CLIP = 64,
 };
 
 /**
@@ -166,7 +193,7 @@ struct fz_stext_char
 	fz_stext_char *next;
 };
 
-extern const char *fz_stext_options_usage;
+FZ_DATA extern const char *fz_stext_options_usage;
 
 /**
 	Create an empty text page.
@@ -313,7 +340,19 @@ fz_device *fz_new_stext_device(fz_context *ctx, fz_stext_page *page, const fz_st
 	language: NULL (for "eng"), or a pointer to a string to describe
 	the languages/scripts that should be used for OCR (e.g.
 	"eng,ara").
+
+	progress: NULL, or function to be called periodically to indicate
+	progress. Return 0 to continue, or 1 to cancel. progress_arg is
+	returned as the void *. The int is a value between 0 and 100 to
+	indicate progress.
+
+	progress_arg: A void * value to be parrotted back to the progress
+	function.
 */
-fz_device *fz_new_ocr_device(fz_context *ctx, fz_device *target, fz_matrix ctm, fz_rect mediabox, int with_list, const char *language);
+fz_device *fz_new_ocr_device(fz_context *ctx, fz_device *target, fz_matrix ctm, fz_rect mediabox, int with_list, const char *language,
+			int (*progress)(fz_context *, void *, int), void *progress_arg);
+
+fz_document *fz_open_reflowed_document(fz_context *ctx, fz_document *underdoc, const fz_stext_options *opts);
+
 
 #endif

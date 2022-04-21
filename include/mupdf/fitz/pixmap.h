@@ -1,3 +1,25 @@
+// Copyright (C) 2004-2021 Artifex Software, Inc.
+//
+// This file is part of MuPDF.
+//
+// MuPDF is free software: you can redistribute it and/or modify it under the
+// terms of the GNU Affero General Public License as published by the Free
+// Software Foundation, either version 3 of the License, or (at your option)
+// any later version.
+//
+// MuPDF is distributed in the hope that it will be useful, but WITHOUT ANY
+// WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+// FOR A PARTICULAR PURPOSE. See the GNU Affero General Public License for more
+// details.
+//
+// You should have received a copy of the GNU Affero General Public License
+// along with MuPDF. If not, see <https://www.gnu.org/licenses/agpl-3.0.en.html>
+//
+// Alternative licensing terms are available from the licensor.
+// For commercial licensing, see <https://www.artifex.com/> or contact
+// Artifex Software, Inc., 1305 Grant Avenue - Suite 200, Novato,
+// CA 94945, U.S.A., +1(415)492-9861, for further information.
+
 #ifndef MUPDF_FITZ_PIXMAP_H
 #define MUPDF_FITZ_PIXMAP_H
 
@@ -273,6 +295,11 @@ void fz_clear_pixmap(fz_context *ctx, fz_pixmap *pix);
 void fz_invert_pixmap(fz_context *ctx, fz_pixmap *pix);
 
 /**
+	Invert the alpha fo all the pixels in a pixmap.
+*/
+void fz_invert_pixmap_alpha(fz_context *ctx, fz_pixmap *pix);
+
+/**
 	Transform the pixels in a pixmap so that luminance of each
 	pixel is inverted, and the chrominance remains unchanged (as
 	much as accuracy allows).
@@ -340,6 +367,9 @@ int fz_is_pixmap_monochrome(fz_context *ctx, fz_pixmap *pixmap);
 fz_pixmap *fz_alpha_from_gray(fz_context *ctx, fz_pixmap *gray);
 void fz_decode_tile(fz_context *ctx, fz_pixmap *pix, const float *decode);
 void fz_md5_pixmap(fz_context *ctx, fz_pixmap *pixmap, unsigned char digest[16]);
+
+fz_stream *
+fz_unpack_stream(fz_context *ctx, fz_stream *src, int depth, int w, int h, int n, int indexed, int pad, int skip);
 
 /**
 	Pixmaps represent a set of pixels for a 2 dimensional region of
@@ -418,5 +448,21 @@ enum
  */
 fz_pixmap *
 fz_warp_pixmap(fz_context *ctx, fz_pixmap *src, const fz_point points[4], int width, int height);
+
+/*
+	Convert between different separation results.
+*/
+fz_pixmap *fz_clone_pixmap_area_with_different_seps(fz_context *ctx, fz_pixmap *src, const fz_irect *bbox, fz_colorspace *dcs, fz_separations *seps, fz_color_params color_params, fz_default_colorspaces *default_cs);
+
+/*
+ * Extract alpha channel as a separate pixmap.
+ * Returns NULL if there is no alpha channel in the source.
+ */
+fz_pixmap *fz_new_pixmap_from_alpha_channel(fz_context *ctx, fz_pixmap *src);
+
+/*
+ * Combine a pixmap without an alpha channel with a soft mask.
+ */
+fz_pixmap *fz_new_pixmap_from_color_and_mask(fz_context *ctx, fz_pixmap *color, fz_pixmap *mask);
 
 #endif

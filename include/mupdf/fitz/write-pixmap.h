@@ -1,3 +1,25 @@
+// Copyright (C) 2004-2021 Artifex Software, Inc.
+//
+// This file is part of MuPDF.
+//
+// MuPDF is free software: you can redistribute it and/or modify it under the
+// terms of the GNU Affero General Public License as published by the Free
+// Software Foundation, either version 3 of the License, or (at your option)
+// any later version.
+//
+// MuPDF is distributed in the hope that it will be useful, but WITHOUT ANY
+// WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+// FOR A PARTICULAR PURPOSE. See the GNU Affero General Public License for more
+// details.
+//
+// You should have received a copy of the GNU Affero General Public License
+// along with MuPDF. If not, see <https://www.gnu.org/licenses/agpl-3.0.en.html>
+//
+// Alternative licensing terms are available from the licensor.
+// For commercial licensing, see <https://www.artifex.com/> or contact
+// Artifex Software, Inc., 1305 Grant Avenue - Suite 200, Novato,
+// CA 94945, U.S.A., +1(415)492-9861, for further information.
+
 #ifndef MUPDF_FITZ_WRITE_PIXMAP_H
 #define MUPDF_FITZ_WRITE_PIXMAP_H
 
@@ -171,9 +193,19 @@ typedef struct
 fz_pdfocr_options *fz_parse_pdfocr_options(fz_context *ctx, fz_pdfocr_options *opts, const char *args);
 
 /**
-	Create a new band writer, outputing pdfocr
+	Create a new band writer, outputing pdfocr.
+
+	Ownership of output stays with the caller, the band writer
+	borrows the reference. The caller must keep the output around
+	for the duration of the band writer, and then close/drop as
+	appropriate.
 */
 fz_band_writer *fz_new_pdfocr_band_writer(fz_context *ctx, fz_output *out, const fz_pdfocr_options *options);
+
+/**
+	Set the progress callback for a pdfocr bandwriter.
+*/
+void fz_pdfocr_band_writer_set_progress(fz_context *ctx, fz_band_writer *writer, int (*progress)(fz_context *, void *, int), void *progress_arg);
 
 /**
 	Write a (Greyscale or RGB) pixmap as pdfocr.

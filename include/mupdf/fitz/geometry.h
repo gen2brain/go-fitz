@@ -1,7 +1,31 @@
+// Copyright (C) 2004-2021 Artifex Software, Inc.
+//
+// This file is part of MuPDF.
+//
+// MuPDF is free software: you can redistribute it and/or modify it under the
+// terms of the GNU Affero General Public License as published by the Free
+// Software Foundation, either version 3 of the License, or (at your option)
+// any later version.
+//
+// MuPDF is distributed in the hope that it will be useful, but WITHOUT ANY
+// WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+// FOR A PARTICULAR PURPOSE. See the GNU Affero General Public License for more
+// details.
+//
+// You should have received a copy of the GNU Affero General Public License
+// along with MuPDF. If not, see <https://www.gnu.org/licenses/agpl-3.0.en.html>
+//
+// Alternative licensing terms are available from the licensor.
+// For commercial licensing, see <https://www.artifex.com/> or contact
+// Artifex Software, Inc., 1305 Grant Avenue - Suite 200, Novato,
+// CA 94945, U.S.A., +1(415)492-9861, for further information.
+
 #ifndef MUPDF_FITZ_MATH_H
 #define MUPDF_FITZ_MATH_H
 
 #include "mupdf/fitz/system.h"
+
+#include <assert.h>
 
 /**
 	Multiply scaled two integers in the 0..255 range
@@ -151,20 +175,35 @@ static inline fz_point fz_make_point(float x, float y)
 	fz_rect is a rectangle represented by two diagonally opposite
 	corners at arbitrary coordinates.
 
-	Rectangles are always axis-aligned with the X- and Y- axes.
-	The relationship between the coordinates are that x0 <= x1 and
-	y0 <= y1 in all cases except for infinite rectangles. The area
-	of a rectangle is defined as (x1 - x0) * (y1 - y0). If either
-	x0 > x1 or y0 > y1 is true for a given rectangle then it is
-	defined to be infinite.
+	Rectangles are always axis-aligned with the X- and Y- axes. We
+	wish to distinguish rectangles in 3 categories; infinite, finite,
+	and invalid. Zero area rectangles are a sub-category of finite
+	ones.
+
+	For all valid rectangles, x0 <= x1 and y0 <= y1 in all cases.
+	Infinite rectangles have x0 = y0 = FZ_MIN_INF_RECT,
+	x1 = y1 = FZ_MAX_INF_RECT. For any non infinite valid rectangle,
+	the area is defined as (x1 - x0) * (y1 - y0).
 
 	To check for empty or infinite rectangles use fz_is_empty_rect
-	and fz_is_infinite_rect.
+	and fz_is_infinite_rect. To check for valid rectangles use
+	fz_is_valid_rect.
+
+	We choose this representation, so that we can easily distinguish
+	the difference between intersecting 2 valid rectangles and
+	getting an invalid one, as opposed to getting a zero area one
+	(which nonetheless has valid bounds within the plane).
 
 	x0, y0: The top left corner.
 
 	x1, y1: The bottom right corner.
+
+	We choose FZ_{MIN,MAX}_INF_RECT to be the largest 32bit signed
+	integer values that survive roundtripping to floats.
 */
+#define FZ_MIN_INF_RECT ((int)0x80000000)
+#define FZ_MAX_INF_RECT ((int)0x7fffff80)
+
 typedef struct
 {
 	float x0, y0;
@@ -200,61 +239,107 @@ static inline fz_irect fz_make_irect(int x0, int y0, int x1, int y1)
 	The bottom left corner is at (0, 0) and the top right corner
 	is at (1, 1).
 */
-extern const fz_rect fz_unit_rect;
+FZ_DATA extern const fz_rect fz_unit_rect;
 
 /**
 	An empty rectangle with an area equal to zero.
-
-	Both the top left and bottom right corner are at (0, 0).
 */
-extern const fz_rect fz_empty_rect;
-extern const fz_irect fz_empty_irect;
+FZ_DATA extern const fz_rect fz_empty_rect;
+FZ_DATA extern const fz_irect fz_empty_irect;
 
 /**
-	An infinite rectangle with negative area.
-
-	The corner (x0, y0) is at (1, 1) while the corner (x1, y1) is
-	at (-1, -1).
+	An infinite rectangle.
 */
-extern const fz_rect fz_infinite_rect;
-extern const fz_irect fz_infinite_irect;
+FZ_DATA extern const fz_rect fz_infinite_rect;
+FZ_DATA extern const fz_irect fz_infinite_irect;
 
 /**
 	Check if rectangle is empty.
 
 	An empty rectangle is defined as one whose area is zero.
+	All invalid rectangles are empty.
 */
 static inline int fz_is_empty_rect(fz_rect r)
 {
-	return (r.x0 == r.x1 || r.y0 == r.y1);
+	return (r.x0 >= r.x1 || r.y0 >= r.y1);
 }
 
 static inline int fz_is_empty_irect(fz_irect r)
 {
-	return (r.x0 == r.x1 || r.y0 == r.y1);
+	return (r.x0 >= r.x1 || r.y0 >= r.y1);
 }
 
 /**
 	Check if rectangle is infinite.
-
-	An infinite rectangle is defined as one where either of the
-	two relationships between corner coordinates are not true.
 */
 static inline int fz_is_infinite_rect(fz_rect r)
 {
-	return (r.x0 > r.x1 || r.y0 > r.y1);
+	return (r.x0 == FZ_MIN_INF_RECT && r.x1 == FZ_MAX_INF_RECT &&
+		r.y0 == FZ_MIN_INF_RECT && r.y1 == FZ_MAX_INF_RECT);
 }
 
 /**
 	Check if an integer rectangle
 	is infinite.
-
-	An infinite rectangle is defined as one where either of the
-	two relationships between corner coordinates are not true.
 */
 static inline int fz_is_infinite_irect(fz_irect r)
 {
-	return (r.x0 > r.x1 || r.y0 > r.y1);
+	return (r.x0 == FZ_MIN_INF_RECT && r.x1 == FZ_MAX_INF_RECT &&
+		r.y0 == FZ_MIN_INF_RECT && r.y1 == FZ_MAX_INF_RECT);
+}
+
+/**
+	Check if rectangle is valid.
+*/
+static inline int fz_is_valid_rect(fz_rect r)
+{
+	return (r.x0 <= r.x1 && r.y0 <= r.y1);
+}
+
+/**
+	Check if an integer rectangle is valid.
+*/
+static inline int fz_is_valid_irect(fz_irect r)
+{
+	return (r.x0 <= r.x1 && r.y0 <= r.y1);
+}
+
+/**
+	Return the width of an irect. Invalid irects return 0.
+*/
+static inline unsigned int
+fz_irect_width(fz_irect r)
+{
+	unsigned int w;
+	if (r.x0 >= r.x1)
+		return 0;
+	/* Check for w overflowing. This should never happen, but
+	 * if it does, it's pretty likely an indication of a severe
+	 * problem. */
+	w = (unsigned int)r.x1 - r.x0;
+	assert((int)w >= 0);
+	if ((int)w < 0)
+		return 0;
+	return (int)w;
+}
+
+/**
+	Return the height of an irect. Invalid irects return 0.
+*/
+static inline int
+fz_irect_height(fz_irect r)
+{
+	unsigned int h;
+	if (r.y0 >= r.y1)
+		return 0;
+	/* Check for h overflowing. This should never happen, but
+	 * if it does, it's pretty likely an indication of a severe
+	 * problem. */
+	h = (unsigned int)(r.y1 - r.y0);
+	assert((int)h >= 0);
+	if ((int)h < 0)
+		return 0;
+	return (int)h;
 }
 
 /**
@@ -278,7 +363,7 @@ typedef struct
 /**
 	Identity transform matrix.
 */
-extern const fz_matrix fz_identity;
+FZ_DATA extern const fz_matrix fz_identity;
 
 static inline fz_matrix fz_make_matrix(float a, float b, float c, float d, float e, float f)
 {
@@ -695,12 +780,14 @@ fz_quad fz_transform_quad(fz_quad q, fz_matrix m);
 int fz_is_point_inside_quad(fz_point p, fz_quad q);
 
 /**
-	Inclusion test for rects.
+	Inclusion test for rects. (Rect is assumed to be open, i.e.
+	top right corner is not included).
 */
 int fz_is_point_inside_rect(fz_point p, fz_rect r);
 
 /**
-	Inclusion test for irects.
+	Inclusion test for irects. (Rect is assumed to be open, i.e.
+	top right corner is not included).
 */
 int fz_is_point_inside_irect(int x, int y, fz_irect r);
 

@@ -1,3 +1,25 @@
+// Copyright (C) 2004-2021 Artifex Software, Inc.
+//
+// This file is part of MuPDF.
+//
+// MuPDF is free software: you can redistribute it and/or modify it under the
+// terms of the GNU Affero General Public License as published by the Free
+// Software Foundation, either version 3 of the License, or (at your option)
+// any later version.
+//
+// MuPDF is distributed in the hope that it will be useful, but WITHOUT ANY
+// WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+// FOR A PARTICULAR PURPOSE. See the GNU Affero General Public License for more
+// details.
+//
+// You should have received a copy of the GNU Affero General Public License
+// along with MuPDF. If not, see <https://www.gnu.org/licenses/agpl-3.0.en.html>
+//
+// Alternative licensing terms are available from the licensor.
+// For commercial licensing, see <https://www.artifex.com/> or contact
+// Artifex Software, Inc., 1305 Grant Avenue - Suite 200, Novato,
+// CA 94945, U.S.A., +1(415)492-9861, for further information.
+
 #ifndef MUPDF_FITZ_STRING_H
 #define MUPDF_FITZ_STRING_H
 
@@ -148,6 +170,30 @@ int fz_runetochar(char *str, int rune);
 	UTF8.
 */
 int fz_runelen(int rune);
+
+/**
+	Compute the index of a rune in a string.
+
+	str: Pointer to beginning of a string.
+
+	p: Pointer to a char in str.
+
+	Returns the index of the rune pointed to by p in str.
+*/
+int fz_runeidx(const char *str, const char *p);
+
+/**
+	Obtain a pointer to the char representing the rune
+	at a given index.
+
+	str: Pointer to beginning of a string.
+
+	idx: Index of a rune to return a char pointer to.
+
+	Returns a pointer to the char where the desired rune starts,
+	or NULL if the string ends before the index is reached.
+*/
+const char *fz_runeptr(const char *str, int idx);
 
 /**
 	Count how many runes the UTF-8 encoded string
