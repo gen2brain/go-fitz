@@ -1,20 +1,18 @@
 ## go-fitz
-[![TravisCI Build Status](https://travis-ci.org/gen2brain/go-fitz.svg?branch=master)](https://travis-ci.org/gen2brain/go-fitz)
+[![Build Status](https://github.com/gen2brain/go-fitz/actions/workflows/build.yml/badge.svg)](https://github.com/gen2brain/go-fitz/actions)
 [![AppVeyor Build Status](https://ci.appveyor.com/api/projects/status/vuuoq9epsd1sa007?svg=true)](https://ci.appveyor.com/project/gen2brain/go-fitz)
 [![GoDoc](https://godoc.org/github.com/gen2brain/go-fitz?status.svg)](https://godoc.org/github.com/gen2brain/go-fitz)
 [![Go Report Card](https://goreportcard.com/badge/github.com/gen2brain/go-fitz?branch=master)](https://goreportcard.com/report/github.com/gen2brain/go-fitz)
 
 Go wrapper for [MuPDF](http://mupdf.com/) fitz library that can extract pages from PDF and EPUB documents as images, text, html or svg.
 
-### Install
-
-    go get -u github.com/gen2brain/go-fitz
-
 ### Build tags
 
 * `extlib` - use external MuPDF library
 * `static` - build with static external MuPDF library (used with `extlib`)
-* `nopie` - use this with GCC older then 7
+* `compat` - enable compat mode (for versions < 1.14.x, used with `extlib`)
+* `pkgconfig` - enable pkg-config (used with `extlib`)
+* `musl` - use musl compiled library (Linux amd64 only)
     
 ### Example
 ```go

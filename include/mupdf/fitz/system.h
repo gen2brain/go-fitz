@@ -1,3 +1,25 @@
+// Copyright (C) 2004-2021 Artifex Software, Inc.
+//
+// This file is part of MuPDF.
+//
+// MuPDF is free software: you can redistribute it and/or modify it under the
+// terms of the GNU Affero General Public License as published by the Free
+// Software Foundation, either version 3 of the License, or (at your option)
+// any later version.
+//
+// MuPDF is distributed in the hope that it will be useful, but WITHOUT ANY
+// WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+// FOR A PARTICULAR PURPOSE. See the GNU Affero General Public License for more
+// details.
+//
+// You should have received a copy of the GNU Affero General Public License
+// along with MuPDF. If not, see <https://www.gnu.org/licenses/agpl-3.0.en.html>
+//
+// Alternative licensing terms are available from the licensor.
+// For commercial licensing, see <https://www.artifex.com/> or contact
+// Artifex Software, Inc., 1305 Grant Avenue - Suite 200, Novato,
+// CA 94945, U.S.A., +1(415)492-9861, for further information.
+
 #ifndef MUPDF_FITZ_SYSTEM_H
 #define MUPDF_FITZ_SYSTEM_H
 
@@ -8,13 +30,16 @@
 #endif
 #endif
 
-/*
+/**
 	Include the standard libc headers.
 */
 
 #include <stddef.h> /* needed for size_t */
 #include <stdarg.h> /* needed for va_list vararg functions */
 #include <setjmp.h> /* needed for the try/catch macros */
+#include <stdio.h> /* useful for debug printfs */
+
+#include "export.h"
 
 #if defined(_MSC_VER) && (_MSC_VER < 1700) /* MSVC older than VS2012 */
 typedef signed char int8_t;
@@ -43,7 +68,7 @@ typedef unsigned __int64 uint64_t;
 #define FZ_SQRT2 1.41421356f
 #define FZ_LN2 0.69314718f
 
-/*
+/**
 	Spot architectures where we have optimisations.
 */
 
@@ -53,32 +78,43 @@ typedef unsigned __int64 uint64_t;
 #endif
 #endif
 
-/*
+/**
 	Some differences in libc can be smoothed over
 */
 
-#ifdef __APPLE__
-#define HAVE_SIGSETJMP
-#elif defined(__unix) && !defined(__NACL__)
-#define HAVE_SIGSETJMP
+#ifndef __STRICT_ANSI__
+#if defined(__APPLE__)
+#ifndef HAVE_SIGSETJMP
+#define HAVE_SIGSETJMP 1
+#endif
+#elif defined(__unix)
+#ifndef __EMSCRIPTEN__
+#ifndef HAVE_SIGSETJMP
+#define HAVE_SIGSETJMP 1
+#endif
+#endif
+#endif
+#endif
+#ifndef HAVE_SIGSETJMP
+#define HAVE_SIGSETJMP 0
 #endif
 
-/*
-	Where possible (i.e. on platforms on which they are provided), use
-	sigsetjmp/siglongjmp in preference to setjmp/longjmp. We don't alter
-	signal handlers within mupdf, so there is no need for us to
-	store/restore them - hence we use the non-restoring variants. This
-	makes a large speed difference on MacOSX (and probably other
-	platforms too.
+/**
+	Where possible (i.e. on platforms on which they are provided),
+	use sigsetjmp/siglongjmp in preference to setjmp/longjmp. We
+	don't alter signal handlers within mupdf, so there is no need
+	for us to store/restore them - hence we use the non-restoring
+	variants. This makes a large speed difference on MacOSX (and
+	probably other platforms too.
 */
-#ifdef HAVE_SIGSETJMP
+#if HAVE_SIGSETJMP
 #define fz_setjmp(BUF) sigsetjmp(BUF, 0)
 #define fz_longjmp(BUF,VAL) siglongjmp(BUF, VAL)
-#define fz_jmp_buf sigjmp_buf
+typedef sigjmp_buf fz_jmp_buf;
 #else
 #define fz_setjmp(BUF) setjmp(BUF)
 #define fz_longjmp(BUF,VAL) longjmp(BUF,VAL)
-#define fz_jmp_buf jmp_buf
+typedef jmp_buf fz_jmp_buf;
 #endif
 
 /* these constants mirror the corresponding macros in stdio.h */
@@ -120,7 +156,9 @@ static __inline int signbit(double x)
 #define isinf(x) (!_finite(x))
 #endif
 
+#if _MSC_VER <= 1920 /* MSVC 2019 */
 #define hypotf _hypotf
+#endif
 #define atoll _atoi64
 
 #endif
@@ -144,13 +182,14 @@ void fz_free_argv(int argc, char **argv);
 #define S_ISDIR(mode) ((mode) & S_IFDIR)
 #endif
 
-/* inline is standard in C++. For some compilers we can enable it within C too. */
+/* inline is standard in C++. For some compilers we can enable it within
+ * C too. */
 
 #ifndef __cplusplus
-#if __STDC_VERSION__ == 199901L /* C99 */
-#elif _MSC_VER >= 1500 /* MSVC 9 or newer */
+#if defined (__STDC_VERSION_) && (__STDC_VERSION__ >= 199901L) /* C99 */
+#elif defined(_MSC_VER) && (_MSC_VER >= 1500) /* MSVC 9 or newer */
 #define inline __inline
-#elif __GNUC__ >= 3 /* GCC 3 or newer */
+#elif defined(__GNUC__) && (__GNUC__ >= 3) /* GCC 3 or newer */
 #define inline __inline
 #else /* Unknown or ancient */
 #define inline
@@ -158,13 +197,14 @@ void fz_free_argv(int argc, char **argv);
 #endif
 
 /* restrict is standard in C99, but not in all C++ compilers. */
-#if __STDC_VERSION__ == 199901L /* C99 */
-#elif _MSC_VER >= 1600 /* MSVC 10 or newer */
-#define restrict __restrict
-#elif __GNUC__ >= 3 /* GCC 3 or newer */
-#define restrict __restrict
+#if defined (__STDC_VERSION_) && (__STDC_VERSION__ >= 199901L) /* C99 */
+#define FZ_RESTRICT restrict
+#elif defined(_MSC_VER) && (_MSC_VER >= 1600) /* MSVC 10 or newer */
+#define FZ_RESTRICT __restrict
+#elif defined(__GNUC__) && (__GNUC__ >= 3) /* GCC 3 or newer */
+#define FZ_RESTRICT __restrict
 #else /* Unknown or ancient */
-#define restrict
+#define FZ_RESTRICT
 #endif
 
 /* noreturn is a GCC extension */
@@ -178,8 +218,9 @@ void fz_free_argv(int argc, char **argv);
 #endif
 #endif
 
-/* Flag unused parameters, for use with 'static inline' functions in headers. */
-#if __GNUC__ > 2 || __GNUC__ == 2 && __GNUC_MINOR__ >= 7
+/* Flag unused parameters, for use with 'static inline' functions in
+ * headers. */
+#if defined(__GNUC__) && (__GNUC__ > 2 || __GNUC__ == 2 && __GNUC_MINOR__ >= 7)
 #define FZ_UNUSED __attribute__((__unused__))
 #else
 #define FZ_UNUSED
@@ -189,7 +230,7 @@ void fz_free_argv(int argc, char **argv);
 #ifdef __printflike
 #define FZ_PRINTFLIKE(F,V) __printflike(F,V)
 #else
-#if __GNUC__ > 2 || __GNUC__ == 2 && __GNUC_MINOR__ >= 7
+#if defined(__GNUC__) && (__GNUC__ > 2 || __GNUC__ == 2 && __GNUC_MINOR__ >= 7)
 #define FZ_PRINTFLIKE(F,V) __attribute__((__format__ (__printf__, F, V)))
 #else
 #define FZ_PRINTFLIKE(F,V)
@@ -202,8 +243,8 @@ void fz_free_argv(int argc, char **argv);
 
 /* If we're compiling as thumb code, then we need to tell the compiler
  * to enter and exit ARM mode around our assembly sections. If we move
- * the ARM functions to a separate file and arrange for it to be compiled
- * without thumb mode, we can save some time on entry.
+ * the ARM functions to a separate file and arrange for it to be
+ * compiled without thumb mode, we can save some time on entry.
  */
 /* This is slightly suboptimal; __thumb__ and __thumb2__ become defined
  * and undefined by #pragma arm/#pragma thumb - but we can't define a
@@ -218,10 +259,47 @@ void fz_free_argv(int argc, char **argv);
 
 #endif
 
+/* Memory block alignment */
+
+/* Most architectures are happy with blocks being aligned to the size
+ * of void *'s. Some (notably sparc) are not.
+ *
+ * Some architectures (notably amd64) are happy for pointers to be 32bit
+ * aligned even on 64bit systems. By making use of this we can save lots
+ * of memory in data structures (notably the display list).
+ *
+ * We attempt to cope with these vagaries via the following definitions.
+ */
+
+/* All blocks allocated by mupdf's allocators are expected to be
+ * returned aligned to FZ_MEMORY_BLOCK_ALIGN_MOD. This is sizeof(void *)
+ * unless overwritten by a predefinition, or by a specific architecture
+ * being detected. */
+#ifndef FZ_MEMORY_BLOCK_ALIGN_MOD
+#if defined(sparc) || defined(__sparc) || defined(__sparc__)
+#define FZ_MEMORY_BLOCK_ALIGN_MOD 8
+#else
+#define FZ_MEMORY_BLOCK_ALIGN_MOD sizeof(void *)
+#endif
+#endif
+
+/* MuPDF will ensure that its use of pointers in packed structures
+ * (such as the display list) will be aligned to FZ_POINTER_ALIGN_MOD.
+ * This is the same as FZ_MEMORY_BLOCK_ALIGN_MOD unless overridden by
+ * a predefinition, or by a specific architecture being detected. */
+#ifndef FZ_POINTER_ALIGN_MOD
+#if defined(__amd64) || defined(__amd64__) || defined(__x86_64) || defined(__x86_64__)
+#define FZ_POINTER_ALIGN_MOD 4
+#else
+#define FZ_POINTER_ALIGN_MOD FZ_MEMORY_BLOCK_ALIGN_MOD
+#endif
+#endif
+
 #ifdef CLUSTER
-/* Include this first so our defines don't clash with the system definitions */
+/* Include this first so our defines don't clash with the system
+ * definitions */
 #include <math.h>
-/*
+/**
  * Trig functions
  */
 static float
@@ -359,5 +437,10 @@ static inline float my_atan2f(float o, float a)
 #define cosf(x) my_sinf(FZ_PI / 2.0f + (x))
 #define atan2f(x,y) my_atan2f((x),(y))
 #endif
+
+static inline int fz_is_pow2(int a)
+{
+	return (a != 0) && (a & (a-1)) == 0;
+}
 
 #endif

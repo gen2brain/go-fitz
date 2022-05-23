@@ -1,3 +1,25 @@
+// Copyright (C) 2004-2021 Artifex Software, Inc.
+//
+// This file is part of MuPDF.
+//
+// MuPDF is free software: you can redistribute it and/or modify it under the
+// terms of the GNU Affero General Public License as published by the Free
+// Software Foundation, either version 3 of the License, or (at your option)
+// any later version.
+//
+// MuPDF is distributed in the hope that it will be useful, but WITHOUT ANY
+// WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+// FOR A PARTICULAR PURPOSE. See the GNU Affero General Public License for more
+// details.
+//
+// You should have received a copy of the GNU Affero General Public License
+// along with MuPDF. If not, see <https://www.gnu.org/licenses/agpl-3.0.en.html>
+//
+// Alternative licensing terms are available from the licensor.
+// For commercial licensing, see <https://www.artifex.com/> or contact
+// Artifex Software, Inc., 1305 Grant Avenue - Suite 200, Novato,
+// CA 94945, U.S.A., +1(415)492-9861, for further information.
+
 #ifndef MUPDF_FITZ_OUTLINE_H
 #define MUPDF_FITZ_OUTLINE_H
 
@@ -8,7 +30,7 @@
 
 /* Outline */
 
-/*
+/**
 	fz_outline is a tree of the outline of a document (also known
 	as table of contents).
 
@@ -28,22 +50,41 @@
 	down: The outline items immediate children in the hierarchy.
 	May be NULL if no children exist.
 */
-typedef struct fz_outline_s fz_outline;
-
-struct fz_outline_s
+typedef struct fz_outline
 {
 	int refs;
 	char *title;
 	char *uri;
 	int page;
 	float x, y;
-	fz_outline *next;
-	fz_outline *down;
+	struct fz_outline *next;
+	struct fz_outline *down;
 	int is_open;
-};
+} fz_outline;
 
+/**
+	Create a new outline entry with zeroed fields for the caller
+	to fill in.
+*/
 fz_outline *fz_new_outline(fz_context *ctx);
+
+/**
+	Increment the reference count. Returns the same pointer.
+
+	Never throws exceptions.
+*/
 fz_outline *fz_keep_outline(fz_context *ctx, fz_outline *outline);
+
+/**
+	Decrements the reference count. When the reference point
+	reaches zero, the outline is freed.
+
+	When freed, it will drop linked	outline entries (next and down)
+	too, thus a whole outline structure can be dropped by dropping
+	the top entry.
+
+	Never throws exceptions.
+*/
 void fz_drop_outline(fz_context *ctx, fz_outline *outline);
 
 #endif

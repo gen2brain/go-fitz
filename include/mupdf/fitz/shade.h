@@ -1,3 +1,25 @@
+// Copyright (C) 2004-2021 Artifex Software, Inc.
+//
+// This file is part of MuPDF.
+//
+// MuPDF is free software: you can redistribute it and/or modify it under the
+// terms of the GNU Affero General Public License as published by the Free
+// Software Foundation, either version 3 of the License, or (at your option)
+// any later version.
+//
+// MuPDF is distributed in the hope that it will be useful, but WITHOUT ANY
+// WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+// FOR A PARTICULAR PURPOSE. See the GNU Affero General Public License for more
+// details.
+//
+// You should have received a copy of the GNU Affero General Public License
+// along with MuPDF. If not, see <https://www.gnu.org/licenses/agpl-3.0.en.html>
+//
+// Alternative licensing terms are available from the licensor.
+// For commercial licensing, see <https://www.artifex.com/> or contact
+// Artifex Software, Inc., 1305 Grant Avenue - Suite 200, Novato,
+// CA 94945, U.S.A., +1(415)492-9861, for further information.
+
 #ifndef MUPDF_FITZ_SHADE_H
 #define MUPDF_FITZ_SHADE_H
 
@@ -5,11 +27,10 @@
 #include "mupdf/fitz/context.h"
 #include "mupdf/fitz/geometry.h"
 #include "mupdf/fitz/store.h"
-#include "mupdf/fitz/colorspace.h"
 #include "mupdf/fitz/pixmap.h"
 #include "mupdf/fitz/compressed-buffer.h"
 
-/*
+/**
  * The shading code uses gouraud shaded triangle meshes.
  */
 
@@ -24,11 +45,11 @@ enum
 	FZ_MESH_TYPE7 = 7
 };
 
-/*
+/**
 	Structure is public to allow derived classes. Do not
 	access the members directly.
 */
-typedef struct fz_shade_s
+typedef struct
 {
 	fz_storable storable;
 
@@ -79,33 +100,24 @@ typedef struct fz_shade_s
 	fz_compressed_buffer *buffer;
 } fz_shade;
 
-/*
-	fz_keep_shade: Add a reference to a fz_shade.
+/**
+	Increment the reference count for the shade structure. The
+	same pointer is returned.
 
-	shade: The reference to keep.
-
-	Returns shade.
+	Never throws exceptions.
 */
 fz_shade *fz_keep_shade(fz_context *ctx, fz_shade *shade);
 
-/*
-	fz_drop_shade: Drop a reference to a fz_shade.
+/**
+	Decrement the reference count for the shade structure. When
+	the reference count hits zero, the structure is freed.
 
-	shade: The reference to drop. If this is the last
-	reference, shade will be destroyed.
+	Never throws exceptions.
 */
 void fz_drop_shade(fz_context *ctx, fz_shade *shade);
 
-/*
-	fz_drop_shade_imp: Internal function to destroy a
-	shade. Only exposed for use with the fz_store.
-
-	shade: The reference to destroy.
-*/
-void fz_drop_shade_imp(fz_context *ctx, fz_storable *shade);
-
-/*
-	fz_bound_shade: Bound a given shading.
+/**
+	Bound a given shading.
 
 	shade: The shade to bound.
 
@@ -115,10 +127,14 @@ void fz_drop_shade_imp(fz_context *ctx, fz_storable *shade);
 
 	Returns r, updated to contain the bounds for the shading.
 */
-fz_rect *fz_bound_shade(fz_context *ctx, fz_shade *shade, const fz_matrix *ctm, fz_rect *r);
+fz_rect fz_bound_shade(fz_context *ctx, fz_shade *shade, fz_matrix ctm);
 
-/*
-	fz_paint_shade: Render a shade to a given pixmap.
+typedef struct fz_shade_color_cache fz_shade_color_cache;
+
+void fz_drop_shade_color_cache(fz_context *ctx, fz_shade_color_cache *cache);
+
+/**
+	Render a shade to a given pixmap.
 
 	shade: The shade to paint.
 
@@ -134,23 +150,25 @@ fz_rect *fz_bound_shade(fz_context *ctx, fz_shade *shade, const fz_matrix *ctm, 
 	bbox: Pointer to a bounding box to limit the rendering
 	of the shade.
 
-	op: NULL, or pointer to overprint bitmap.
-*/
-void fz_paint_shade(fz_context *ctx, fz_shade *shade, fz_colorspace *override_cs, const fz_matrix *ctm, fz_pixmap *dest, const fz_color_params *color_params, const fz_irect *bbox, const fz_overprint *op);
+	eop: NULL, or pointer to overprint bitmap.
 
-/*
+	cache: *cache is used to cache color information. If *cache is NULL it
+	is set to point to a new fz_shade_color_cache. If cache is NULL it is
+	ignored.
+*/
+void fz_paint_shade(fz_context *ctx, fz_shade *shade, fz_colorspace *override_cs, fz_matrix ctm, fz_pixmap *dest, fz_color_params color_params, fz_irect bbox, const fz_overprint *eop, fz_shade_color_cache **cache);
+
+/**
  *	Handy routine for processing mesh based shades
  */
-typedef struct fz_vertex_s fz_vertex;
-
-struct fz_vertex_s
+typedef struct
 {
 	fz_point p;
 	float c[FZ_MAX_COLORS];
-};
+} fz_vertex;
 
-/*
-	fz_shade_prepare_fn: Callback function type for use with
+/**
+	Callback function type for use with
 	fz_process_shade.
 
 	arg: Opaque pointer from fz_process_shade caller.
@@ -161,8 +179,8 @@ struct fz_vertex_s
 */
 typedef void (fz_shade_prepare_fn)(fz_context *ctx, void *arg, fz_vertex *v, const float *c);
 
-/*
-	fz_shade_process_fn: Callback function type for use with
+/**
+	Callback function type for use with
 	fz_process_shade.
 
 	arg: Opaque pointer from fz_process_shade caller.
@@ -173,11 +191,11 @@ typedef void (fz_shade_prepare_fn)(fz_context *ctx, void *arg, fz_vertex *v, con
 */
 typedef void (fz_shade_process_fn)(fz_context *ctx, void *arg, fz_vertex *av, fz_vertex *bv, fz_vertex *cv);
 
-/*
-	fz_process_shade: Process a shade, using supplied callback
-	functions. This decomposes the shading to a mesh (even ones
-	that are not natively meshes, such as linear or radial
-	shadings), and processes triangles from those meshes.
+/**
+	Process a shade, using supplied callback functions. This
+	decomposes the shading to a mesh (even ones that are not
+	natively meshes, such as linear or radial shadings), and
+	processes triangles from those meshes.
 
 	shade: The shade to process.
 
@@ -194,9 +212,20 @@ typedef void (fz_shade_process_fn)(fz_context *ctx, void *arg, fz_vertex *av, fz
 	process_arg: An opaque argument passed through from caller
 	to callback functions.
 */
-void fz_process_shade(fz_context *ctx, fz_shade *shade, const fz_matrix *ctm,
+void fz_process_shade(fz_context *ctx, fz_shade *shade, fz_matrix ctm, fz_rect scissor,
 			fz_shade_prepare_fn *prepare,
 			fz_shade_process_fn *process,
 			void *process_arg);
+
+
+/* Implementation details: subject to change. */
+
+/**
+	Internal function to destroy a
+	shade. Only exposed for use with the fz_store.
+
+	shade: The reference to destroy.
+*/
+void fz_drop_shade_imp(fz_context *ctx, fz_storable *shade);
 
 #endif

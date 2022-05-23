@@ -1,10 +1,12 @@
-// +build extlib
+//go:build extlib && !pkgconfig
+// +build extlib,!pkgconfig
 
 package fitz
 
 /*
 #cgo !static LDFLAGS: -lmupdf -lm
-#cgo static LDFLAGS: -lmupdf -lm -lmupdfthird
+#cgo static,!compat LDFLAGS: -lmupdf -lm -lmupdf-third
+#cgo static,compat LDFLAGS: -lmupdf -lm -lmupdfthird
 #cgo android LDFLAGS: -llog
 #cgo windows LDFLAGS: -lcomdlg32 -lgdi32
 */

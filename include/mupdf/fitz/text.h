@@ -1,3 +1,25 @@
+// Copyright (C) 2004-2021 Artifex Software, Inc.
+//
+// This file is part of MuPDF.
+//
+// MuPDF is free software: you can redistribute it and/or modify it under the
+// terms of the GNU Affero General Public License as published by the Free
+// Software Foundation, either version 3 of the License, or (at your option)
+// any later version.
+//
+// MuPDF is distributed in the hope that it will be useful, but WITHOUT ANY
+// WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+// FOR A PARTICULAR PURPOSE. See the GNU Affero General Public License for more
+// details.
+//
+// You should have received a copy of the GNU Affero General Public License
+// along with MuPDF. If not, see <https://www.gnu.org/licenses/agpl-3.0.en.html>
+//
+// Alternative licensing terms are available from the licensor.
+// For commercial licensing, see <https://www.artifex.com/> or contact
+// Artifex Software, Inc., 1305 Grant Avenue - Suite 200, Novato,
+// CA 94945, U.S.A., +1(415)492-9861, for further information.
+
 #ifndef MUPDF_FITZ_TEXT_H
 #define MUPDF_FITZ_TEXT_H
 
@@ -7,7 +29,7 @@
 #include "mupdf/fitz/path.h"
 #include "mupdf/fitz/bidi.h"
 
-/*
+/**
 	Text buffer.
 
 	The trm field contains the a, b, c and d coefficients.
@@ -19,21 +41,17 @@
 	with indexes into the glyph array.
 */
 
-typedef struct fz_text_s fz_text;
-typedef struct fz_text_span_s fz_text_span;
-typedef struct fz_text_item_s fz_text_item;
-
-struct fz_text_item_s
+typedef struct
 {
 	float x, y;
 	int gid; /* -1 for one gid to many ucs mappings */
 	int ucs; /* -1 for one ucs to many gid mappings */
-};
+} fz_text_item;
 
 #define FZ_LANG_TAG2(c1,c2) ((c1-'a'+1) + ((c2-'a'+1)*27))
 #define FZ_LANG_TAG3(c1,c2,c3) ((c1-'a'+1) + ((c2-'a'+1)*27) + ((c3-'a'+1)*27*27))
 
-typedef enum fz_text_language_e
+typedef enum
 {
 	FZ_LANG_UNSET = 0,
 	FZ_LANG_ur = FZ_LANG_TAG2('u','r'),
@@ -45,7 +63,7 @@ typedef enum fz_text_language_e
 	FZ_LANG_zh_Hant = FZ_LANG_TAG3('z','h','t'),
 } fz_text_language;
 
-struct fz_text_span_s
+typedef struct fz_text_span
 {
 	fz_font *font;
 	fz_matrix trm;
@@ -55,41 +73,40 @@ struct fz_text_span_s
 	unsigned language : 15;		/* The language as marked in the original document */
 	int len, cap;
 	fz_text_item *items;
-	fz_text_span *next;
-};
+	struct fz_text_span *next;
+} fz_text_span;
 
-struct fz_text_s
+typedef struct
 {
 	int refs;
 	fz_text_span *head, *tail;
-};
+} fz_text;
 
-/*
-	fz_new_text: Create a new empty fz_text object.
+/**
+	Create a new empty fz_text object.
 
 	Throws exception on failure to allocate.
 */
 fz_text *fz_new_text(fz_context *ctx);
 
-/*
-	fz_keep_text: Add a reference to a fz_text.
+/**
+	Increment the reference count for the text object. The same
+	pointer is returned.
 
-	text: text object to keep a reference to.
-
-	Return the same text pointer.
+	Never throws exceptions.
 */
 fz_text *fz_keep_text(fz_context *ctx, const fz_text *text);
 
-/*
-	fz_drop_text: Drop a reference to the object, freeing
-	if it is the last one.
+/**
+	Decrement the reference count for the text object. When the
+	reference count hits zero, the text object is freed.
 
-	text: Object to drop the reference to.
+	Never throws exceptions.
 */
 void fz_drop_text(fz_context *ctx, const fz_text *text);
 
-/*
-	fz_show_glyph: Add a glyph/unicode value to a text object.
+/**
+	Add a glyph/unicode value to a text object.
 
 	text: Text object to add to.
 
@@ -113,17 +130,16 @@ void fz_drop_text(fz_context *ctx, const fz_text *text);
 
 	Throws exception on failure to allocate.
 */
-void fz_show_glyph(fz_context *ctx, fz_text *text, fz_font *font, const fz_matrix *trm, int glyph, int unicode, int wmode, int bidi_level, fz_bidi_direction markup_dir, fz_text_language language);
+void fz_show_glyph(fz_context *ctx, fz_text *text, fz_font *font, fz_matrix trm, int glyph, int unicode, int wmode, int bidi_level, fz_bidi_direction markup_dir, fz_text_language language);
 
-/*
-	fz_show_string: Add a UTF8 string to a text object.
+/**
+	Add a UTF8 string to a text object.
 
 	text: Text object to add to.
 
 	font: The font the string should be added in.
 
-	trm: The transform to use. Will be updated according
-	to the advance of the string on exit.
+	trm: The transform to use.
 
 	s: The utf-8 string to add.
 
@@ -131,18 +147,27 @@ void fz_show_glyph(fz_context *ctx, fz_text *text, fz_font *font, const fz_matri
 
 	bidi_level: The bidirectional level for this glyph.
 
-	markup_dir: The direction of the text as specified in the
-	markup.
+	markup_dir: The direction of the text as specified in the markup.
 
 	language: The language in use (if known, 0 otherwise)
-	(e.g. FZ_LANG_zh_Hans).
+		(e.g. FZ_LANG_zh_Hans).
 
-	Throws exception on failure to allocate.
+	Returns the transform updated with the advance width of the
+	string.
 */
-void fz_show_string(fz_context *ctx, fz_text *text, fz_font *font, fz_matrix *trm, const char *s, int wmode, int bidi_level, fz_bidi_direction markup_dir, fz_text_language language);
+fz_matrix fz_show_string(fz_context *ctx, fz_text *text, fz_font *font, fz_matrix trm, const char *s, int wmode, int bidi_level, fz_bidi_direction markup_dir, fz_text_language language);
 
-/*
-	fz_bound_text: Find the bounds of a given text object.
+/**
+	Measure the advance width of a UTF8 string should it be added to a text object.
+
+	This uses the same layout algorithms as fz_show_string, and can be used
+	to calculate text alignment adjustments.
+*/
+fz_matrix
+fz_measure_string(fz_context *ctx, fz_font *user_font, fz_matrix trm, const char *s, int wmode, int bidi_level, fz_bidi_direction markup_dir, fz_text_language language);
+
+/**
+	Find the bounds of a given text object.
 
 	text: The text object to find the bounds of.
 
@@ -156,18 +181,9 @@ void fz_show_string(fz_context *ctx, fz_text *text, fz_font *font, fz_matrix *tr
 	Returns a pointer to r, which is updated to contain the
 	bounding box for the text object.
 */
-fz_rect *fz_bound_text(fz_context *ctx, const fz_text *text, const fz_stroke_state *stroke, const fz_matrix *ctm, fz_rect *r);
+fz_rect fz_bound_text(fz_context *ctx, const fz_text *text, const fz_stroke_state *stroke, fz_matrix ctm);
 
-/*
-	fz_clone_text: Clone a text object.
-
-	text: The text object to clone.
-
-	Throws an exception on allocation failure.
-*/
-fz_text *fz_clone_text(fz_context *ctx, const fz_text *text);
-
-/*
+/**
 	Convert ISO 639 (639-{1,2,3,5}) language specification
 	strings losslessly to a 15 bit fz_text_language code.
 
@@ -178,7 +194,7 @@ fz_text *fz_clone_text(fz_context *ctx, const fz_text *text);
 */
 fz_text_language fz_text_language_from_string(const char *str);
 
-/*
+/**
 	Recover ISO 639 (639-{1,2,3,5}) language specification
 	strings losslessly from a 15 bit fz_text_language code.
 
