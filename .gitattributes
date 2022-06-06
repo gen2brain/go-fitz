@@ -1,0 +1,6 @@
+# Enforce LF for Netpbm formats on Windows
+testdata/test.pam text eol=lf
+testdata/test.pbm text eol=lf
+testdata/test.pfm text eol=lf
+testdata/test.pgm text eol=lf
+testdata/test.ppm text eol=lf

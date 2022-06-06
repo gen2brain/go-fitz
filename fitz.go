@@ -482,17 +482,3 @@ func (f *Document) Close() error {
 
 	return nil
 }
-
-// contentType returns document MIME type.
-func contentType(b []byte) string {
-	var mtype string
-	if len(b) > 3 && b[0] == 0x25 && b[1] == 0x50 && b[2] == 0x44 && b[3] == 0x46 {
-		mtype = "application/pdf"
-	} else if len(b) > 57 && b[0] == 0x50 && b[1] == 0x4B && b[2] == 0x3 && b[3] == 0x4 && b[30] == 0x6D && b[31] == 0x69 && b[32] == 0x6D && b[33] == 0x65 &&
-		b[34] == 0x74 && b[35] == 0x79 && b[36] == 0x70 && b[37] == 0x65 && b[38] == 0x61 && b[39] == 0x70 && b[40] == 0x70 && b[41] == 0x6C &&
-		b[42] == 0x69 && b[43] == 0x63 && b[44] == 0x61 && b[45] == 0x74 && b[46] == 0x69 && b[47] == 0x6F && b[48] == 0x6E && b[49] == 0x2F &&
-		b[50] == 0x65 && b[51] == 0x70 && b[52] == 0x75 && b[53] == 0x62 && b[54] == 0x2B && b[55] == 0x7A && b[56] == 0x69 && b[57] == 0x70 {
-		mtype = "application/epub+zip"
-	}
-	return mtype
-}
