@@ -40,6 +40,7 @@ var (
 // Document represents fitz document.
 type Document struct {
 	ctx    *C.struct_fz_context
+	data   []byte // binds data to the Document lifecycle avoiding premature GC
 	doc    *C.struct_fz_document
 	mtx    sync.Mutex
 	stream *C.fz_stream
@@ -136,6 +137,8 @@ func NewFromMemory(b []byte) (f *Document, err error) {
 		err = ErrOpenMemory
 		return
 	}
+
+	f.data = b
 
 	cmagic := C.CString(magic)
 	defer C.free(unsafe.Pointer(cmagic))
@@ -479,6 +482,8 @@ func (f *Document) Close() error {
 
 	C.fz_drop_document(f.ctx, f.doc)
 	C.fz_drop_context(f.ctx)
+
+	f.data = nil
 
 	return nil
 }
