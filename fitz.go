@@ -431,7 +431,7 @@ func (f *Document) ToC() ([]Outline, error) {
 			res.Level = level
 			res.Title = C.GoString(outline.title)
 			res.URI = C.GoString(outline.uri)
-			res.Page = int(outline.page)
+			res.Page = int(outline.page.page)
 			res.Top = float64(outline.y)
 			data = append(data, res)
 

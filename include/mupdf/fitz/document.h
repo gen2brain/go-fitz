@@ -24,6 +24,7 @@
 #define MUPDF_FITZ_DOCUMENT_H
 
 #include "mupdf/fitz/system.h"
+#include "mupdf/fitz/types.h"
 #include "mupdf/fitz/context.h"
 #include "mupdf/fitz/geometry.h"
 #include "mupdf/fitz/device.h"
@@ -32,23 +33,9 @@
 #include "mupdf/fitz/outline.h"
 #include "mupdf/fitz/separation.h"
 
-typedef struct fz_document fz_document;
 typedef struct fz_document_handler fz_document_handler;
 typedef struct fz_page fz_page;
 typedef intptr_t fz_bookmark;
-
-/**
-	Locations within the document are referred to in terms of
-	chapter and page, rather than just a page number. For some
-	documents (such as epub documents with large numbers of pages
-	broken into many chapters) this can make navigation much faster
-	as only the required chapter needs to be decoded at a time.
-*/
-typedef struct
-{
-	int chapter;
-	int page;
-} fz_location;
 
 /**
 	Simple constructor for fz_locations.
@@ -149,6 +136,12 @@ typedef int (fz_document_has_permission_fn)(fz_context *ctx, fz_document *doc, f
 typedef fz_outline *(fz_document_load_outline_fn)(fz_context *ctx, fz_document *doc);
 
 /**
+	Type for a function to be called to obtain an outline iterator
+	for a document. See fz_document_outline_iterator for more information.
+*/
+typedef fz_outline_iterator *(fz_document_outline_iterator_fn)(fz_context *ctx, fz_document *doc);
+
+/**
 	Type for a function to be called to lay
 	out a document. See fz_layout_document for more information.
 */
@@ -157,9 +150,16 @@ typedef void (fz_document_layout_fn)(fz_context *ctx, fz_document *doc, float w,
 /**
 	Type for a function to be called to
 	resolve an internal link to a location (chapter/page number
-	tuple). See fz_resolve_link for more information.
+	tuple). See fz_resolve_link_dest for more information.
 */
-typedef fz_location (fz_document_resolve_link_fn)(fz_context *ctx, fz_document *doc, const char *uri, float *xp, float *yp);
+typedef fz_link_dest (fz_document_resolve_link_dest_fn)(fz_context *ctx, fz_document *doc, const char *uri);
+
+/**
+	Type for a function to be called to
+	create an internal link to a destination (chapter/page/x/y/w/h/zoom/type
+	tuple). See fz_resolve_link_dest for more information.
+*/
+typedef char * (fz_document_format_link_uri_fn)(fz_context *ctx, fz_document *doc, fz_link_dest dest);
 
 /**
 	Type for a function to be called to
@@ -183,10 +183,17 @@ typedef fz_page *(fz_document_load_page_fn)(fz_context *ctx, fz_document *doc, i
 
 /**
 	Type for a function to query
-	a documents metadata. See fz_lookup_metadata for more
+	a document's metadata. See fz_lookup_metadata for more
 	information.
 */
 typedef int (fz_document_lookup_metadata_fn)(fz_context *ctx, fz_document *doc, const char *key, char *buf, int size);
+
+/**
+	Type for a function to set
+	a document's metadata. See fz_set_metadata for more
+	information.
+*/
+typedef int (fz_document_set_metadata_fn)(fz_context *ctx, fz_document *doc, const char *key, const char *value);
 
 /**
 	Return output intent color space if it exists
@@ -484,6 +491,13 @@ int fz_authenticate_password(fz_context *ctx, fz_document *doc, const char *pass
 fz_outline *fz_load_outline(fz_context *ctx, fz_document *doc);
 
 /**
+	Get an iterator for the document outline.
+
+	Should be freed by fz_drop_outline_iterator.
+*/
+fz_outline_iterator *fz_new_outline_iterator(fz_context *ctx, fz_document *doc);
+
+/**
 	Is the document reflowable.
 
 	Returns 1 to indicate reflowable documents, otherwise 0.
@@ -516,6 +530,21 @@ fz_location fz_lookup_bookmark(fz_context *ctx, fz_document *doc, fz_bookmark ma
 	May return 0 for documents with no pages.
 */
 int fz_count_pages(fz_context *ctx, fz_document *doc);
+
+/**
+	Resolve an internal link to a page number, location, and possible viewing parameters.
+
+	Returns location (-1,-1) if the URI cannot be resolved.
+*/
+fz_link_dest fz_resolve_link_dest(fz_context *ctx, fz_document *doc, const char *uri);
+
+/**
+	Format an internal link to a page number, location, and possible viewing parameters,
+	suitable for use with fz_create_link.
+
+	Returns a newly allocated string that the caller must free.
+*/
+char *fz_format_link_uri(fz_context *ctx, fz_document *doc, fz_link_dest dest);
 
 /**
 	Resolve an internal link to a page number.
@@ -755,10 +784,17 @@ int fz_lookup_metadata(fz_context *ctx, fz_document *doc, const char *key, char 
 #define FZ_META_FORMAT "format"
 #define FZ_META_ENCRYPTION "encryption"
 
-#define FZ_META_INFO_AUTHOR "info:Author"
+#define FZ_META_INFO "info:"
 #define FZ_META_INFO_TITLE "info:Title"
+#define FZ_META_INFO_AUTHOR "info:Author"
+#define FZ_META_INFO_SUBJECT "info:Subject"
+#define FZ_META_INFO_KEYWORDS "info:Keywords"
 #define FZ_META_INFO_CREATOR "info:Creator"
 #define FZ_META_INFO_PRODUCER "info:Producer"
+#define FZ_META_INFO_CREATIONDATE "info:CreationDate"
+#define FZ_META_INFO_MODIFICATIONDATE "info:ModDate"
+
+void fz_set_metadata(fz_context *ctx, fz_document *doc, const char *key, const char *value);
 
 /**
 	Find the output intent colorspace if the document has defined
@@ -845,14 +881,17 @@ struct fz_document
 	fz_document_authenticate_password_fn *authenticate_password;
 	fz_document_has_permission_fn *has_permission;
 	fz_document_load_outline_fn *load_outline;
+	fz_document_outline_iterator_fn *outline_iterator;
 	fz_document_layout_fn *layout;
 	fz_document_make_bookmark_fn *make_bookmark;
 	fz_document_lookup_bookmark_fn *lookup_bookmark;
-	fz_document_resolve_link_fn *resolve_link;
+	fz_document_resolve_link_dest_fn *resolve_link_dest;
+	fz_document_format_link_uri_fn *format_link_uri;
 	fz_document_count_chapters_fn *count_chapters;
 	fz_document_count_pages_fn *count_pages;
 	fz_document_load_page_fn *load_page;
 	fz_document_lookup_metadata_fn *lookup_metadata;
+	fz_document_set_metadata_fn *set_metadata;
 	fz_document_output_intent_fn *get_output_intent;
 	fz_document_output_accelerator_fn *output_accelerator;
 	int did_layout;

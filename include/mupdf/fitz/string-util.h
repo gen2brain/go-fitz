@@ -24,6 +24,7 @@
 #define MUPDF_FITZ_STRING_H
 
 #include "mupdf/fitz/system.h"
+#include "mupdf/fitz/context.h"
 
 /* The Unicode character used to incoming character whose value is
  * unknown or unrepresentable. */
@@ -217,9 +218,15 @@ int fz_grisu(float f, char *s, int *exp);
 
 /**
 	Check and parse string into page ranges:
-		( ','? ([0-9]+|'N') ( '-' ([0-9]+|N) )? )+
+		/,?(-?\d+|N)(-(-?\d+|N))?/
 */
 int fz_is_page_range(fz_context *ctx, const char *s);
 const char *fz_parse_page_range(fz_context *ctx, const char *s, int *a, int *b, int n);
+
+/**
+	Unicode aware tolower and toupper functions.
+*/
+int fz_tolower(int c);
+int fz_toupper(int c);
 
 #endif

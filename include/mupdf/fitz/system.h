@@ -1,4 +1,4 @@
-// Copyright (C) 2004-2021 Artifex Software, Inc.
+// Copyright (C) 2004-2022 Artifex Software, Inc.
 //
 // This file is part of MuPDF.
 //
@@ -182,18 +182,28 @@ void fz_free_argv(int argc, char **argv);
 #define S_ISDIR(mode) ((mode) & S_IFDIR)
 #endif
 
+int64_t fz_stat_ctime(const char *path);
+int64_t fz_stat_mtime(const char *path);
+
 /* inline is standard in C++. For some compilers we can enable it within
- * C too. */
+ * C too. Some compilers think they know better than we do about when
+ * to actually honour inline (particularly for large functions); use
+ * fz_forceinline to kick them into really inlining. */
 
 #ifndef __cplusplus
 #if defined (__STDC_VERSION_) && (__STDC_VERSION__ >= 199901L) /* C99 */
 #elif defined(_MSC_VER) && (_MSC_VER >= 1500) /* MSVC 9 or newer */
 #define inline __inline
+#define fz_forceinline __forceinline
 #elif defined(__GNUC__) && (__GNUC__ >= 3) /* GCC 3 or newer */
 #define inline __inline
 #else /* Unknown or ancient */
 #define inline
 #endif
+#endif
+
+#ifndef fz_forceinline
+#define fz_forceinline inline
 #endif
 
 /* restrict is standard in C99, but not in all C++ compilers. */

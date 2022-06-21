@@ -27,6 +27,7 @@
 #include "mupdf/fitz/context.h"
 #include "mupdf/fitz/geometry.h"
 #include "mupdf/fitz/buffer.h"
+#include "mupdf/fitz/color.h"
 
 /* forward declaration for circular dependency */
 struct fz_device;
@@ -705,8 +706,9 @@ struct fz_font
 
 	int glyph_count;
 
-	/* per glyph bounding box cache */
-	fz_rect *bbox_table;
+	/* per glyph bounding box cache. */
+	fz_rect **bbox_table;
+	int use_glyph_bbox;
 
 	/* substitute metrics */
 	int width_count;
@@ -714,7 +716,7 @@ struct fz_font
 	short *width_table; /* in 1000 units */
 
 	/* cached glyph metrics */
-	float *advance_cache;
+	float **advance_cache;
 
 	/* cached encoding lookup */
 	uint16_t *encoding_cache[256];

@@ -31,6 +31,7 @@
 #include "mupdf/fitz/bitmap.h"
 #include "mupdf/fitz/buffer.h"
 #include "mupdf/fitz/image.h"
+#include "mupdf/fitz/writer.h"
 
 /**
 	PCL output
@@ -175,6 +176,7 @@ typedef struct
 	int compress;
 	int strip_height;
 	char language[256];
+	char datadir[1024];
 
 	/* Updated as we move through the job */
 	int page_count;
@@ -189,6 +191,7 @@ typedef struct
 		compression=flate: Flate compression
 		strip-height=n: Strip height (default 16)
 		ocr-language=<lang>: OCR Language (default eng)
+		ocr-datadir=<datadir>: OCR data path (default rely on TESSDATA_PREFIX)
 */
 fz_pdfocr_options *fz_parse_pdfocr_options(fz_context *ctx, fz_pdfocr_options *opts, const char *args);
 
@@ -205,7 +208,7 @@ fz_band_writer *fz_new_pdfocr_band_writer(fz_context *ctx, fz_output *out, const
 /**
 	Set the progress callback for a pdfocr bandwriter.
 */
-void fz_pdfocr_band_writer_set_progress(fz_context *ctx, fz_band_writer *writer, int (*progress)(fz_context *, void *, int), void *progress_arg);
+void fz_pdfocr_band_writer_set_progress(fz_context *ctx, fz_band_writer *writer, fz_pdfocr_progress_fn *progress_fn, void *progress_arg);
 
 /**
 	Write a (Greyscale or RGB) pixmap as pdfocr.

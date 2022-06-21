@@ -24,13 +24,14 @@
 #define MUPDF_FITZ_STRUCTURED_TEXT_H
 
 #include "mupdf/fitz/system.h"
+#include "mupdf/fitz/types.h"
 #include "mupdf/fitz/context.h"
 #include "mupdf/fitz/geometry.h"
 #include "mupdf/fitz/font.h"
 #include "mupdf/fitz/image.h"
 #include "mupdf/fitz/output.h"
 #include "mupdf/fitz/device.h"
-#include "mupdf/fitz/document.h"
+#include "mupdf/fitz/pool.h"
 
 /**
 	Simple text layout (for use with annotation editing primarily).
@@ -244,7 +245,7 @@ void fz_print_stext_page_as_text(fz_context *ctx, fz_output *out, fz_stext_page 
 	NOTE: This is an experimental interface and subject to change
 	without notice.
 */
-int fz_search_stext_page(fz_context *ctx, fz_stext_page *text, const char *needle, fz_quad *quads, int max_quads);
+int fz_search_stext_page(fz_context *ctx, fz_stext_page *text, const char *needle, int *hit_mark, fz_quad *hit_bbox, int hit_max);
 
 /**
 	Return a list of quads to highlight lines inside the selection
@@ -285,6 +286,7 @@ char *fz_copy_rectangle(fz_context *ctx, fz_stext_page *page, fz_rect area, int 
 typedef struct
 {
 	int flags;
+	float scale;
 } fz_stext_options;
 
 /**
@@ -341,6 +343,9 @@ fz_device *fz_new_stext_device(fz_context *ctx, fz_stext_page *page, const fz_st
 	the languages/scripts that should be used for OCR (e.g.
 	"eng,ara").
 
+	datadir: NULL (for ""), or a pointer to a path string otherwise
+	provided to Tesseract in the TESSDATA_PREFIX environment variable.
+
 	progress: NULL, or function to be called periodically to indicate
 	progress. Return 0 to continue, or 1 to cancel. progress_arg is
 	returned as the void *. The int is a value between 0 and 100 to
@@ -350,7 +355,7 @@ fz_device *fz_new_stext_device(fz_context *ctx, fz_stext_page *page, const fz_st
 	function.
 */
 fz_device *fz_new_ocr_device(fz_context *ctx, fz_device *target, fz_matrix ctm, fz_rect mediabox, int with_list, const char *language,
-			int (*progress)(fz_context *, void *, int), void *progress_arg);
+			const char *datadir, int (*progress)(fz_context *, void *, int), void *progress_arg);
 
 fz_document *fz_open_reflowed_document(fz_context *ctx, fz_document *underdoc, const fz_stext_options *opts);
 
