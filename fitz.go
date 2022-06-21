@@ -1,6 +1,3 @@
-//go:build !compat
-// +build !compat
-
 // Package fitz provides wrapper for the [MuPDF](http://mupdf.com/) fitz library
 // that can extract pages from PDF and EPUB documents as images, text, html or svg.
 package fitz
