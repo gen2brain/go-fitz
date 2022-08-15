@@ -1,0 +1,159 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_library", "go_test")
+
+cc_library(
+    name = "mupdf",
+    srcs = select({
+        "@io_bazel_rules_go//go/platform:android_386": [
+            "libs/libmupdf_linux_386.a",
+            "libs/libmupdfthird_linux_386.a",
+        ],
+        "@io_bazel_rules_go//go/platform:android_amd64": [
+            "libs/libmupdf_linux_amd64.a",
+            "libs/libmupdfthird_linux_amd64.a",
+        ],
+        "@io_bazel_rules_go//go/platform:android_arm": [
+            "libs/libmupdf_android_arm.a",
+            "libs/libmupdfthird_android_arm.a",
+        ],
+        "@io_bazel_rules_go//go/platform:android_arm64": [
+            "libs/libmupdf_android_arm64.a",
+            "libs/libmupdfthird_android_arm64.a",
+        ],
+        "@io_bazel_rules_go//go/platform:darwin_amd64": [
+            "libs/libmupdf_darwin_amd64.a",
+            "libs/libmupdfthird_darwin_amd64.a",
+        ],
+        "@io_bazel_rules_go//go/platform:darwin_arm64": [
+            "libs/libmupdf_darwin_arm64.a",
+            "libs/libmupdfthird_darwin_arm64.a",
+        ],
+        "@io_bazel_rules_go//go/platform:ios_amd64": [
+            "libs/libmupdf_darwin_amd64.a",
+            "libs/libmupdfthird_darwin_amd64.a",
+        ],
+        "@io_bazel_rules_go//go/platform:ios_arm64": [
+            "libs/libmupdf_darwin_arm64.a",
+            "libs/libmupdfthird_darwin_arm64.a",
+        ],
+        "@io_bazel_rules_go//go/platform:linux_386": [
+            "libs/libmupdf_linux_386.a",
+            "libs/libmupdfthird_linux_386.a",
+        ],
+        "@io_bazel_rules_go//go/platform:linux_amd64": [
+            "libs/libmupdf_linux_amd64.a",
+            "libs/libmupdfthird_linux_amd64.a",
+        ],
+        "@io_bazel_rules_go//go/platform:linux_arm": [
+            "libs/libmupdf_linux_arm.a",
+            "libs/libmupdfthird_linux_arm.a",
+        ],
+        "@io_bazel_rules_go//go/platform:linux_arm64": [
+            "libs/libmupdf_linux_arm64.a",
+            "libs/libmupdfthird_linux_arm64.a",
+        ],
+        "@io_bazel_rules_go//go/platform:windows_386": [
+            "libs/libmupdf_windows_386.a",
+            "libs/libmupdfthird_windows_386.a",
+        ],
+        "@io_bazel_rules_go//go/platform:windows_amd64": [
+            "libs/libmupdf_windows_amd64.a",
+            "libs/libmupdfthird_windows_amd64.a",
+        ],
+        "//conditions:default": [],
+    }),
+    hdrs = glob(
+        ["include/**/*.h"],
+        allow_empty = False,
+    ),
+)
+
+go_library(
+    name = "go-fitz",
+    srcs = [
+        "fitz.go",
+        "fitz_cgo.go",
+        "fitz_cgo_extlib.go",
+        "fitz_cgo_extlib_pkgconfig.go",
+        "fitz_content_types.go",
+    ],
+    cdeps = [":mupdf"],
+    cgo = True,
+    clinkopts = select({
+        "@io_bazel_rules_go//go/platform:android_386": [
+            "-Llibs -lmupdf_linux_386 -lmupdfthird_linux_386 -lm",
+        ],
+        "@io_bazel_rules_go//go/platform:android_amd64": [
+            "-Llibs -lmupdf_linux_amd64 -lmupdfthird_linux_amd64 -lm",
+        ],
+        "@io_bazel_rules_go//go/platform:android_arm": [
+            "-Llibs -lmupdf_android_arm -lmupdfthird_android_arm -lm -llog",
+        ],
+        "@io_bazel_rules_go//go/platform:android_arm64": [
+            "-Llibs -lmupdf_android_arm64 -lmupdfthird_android_arm64 -lm -llog",
+        ],
+        "@io_bazel_rules_go//go/platform:darwin_amd64": [
+            "-Llibs -lmupdf_darwin_amd64 -lmupdfthird_darwin_amd64 -lm",
+        ],
+        "@io_bazel_rules_go//go/platform:darwin_arm64": [
+            "-Llibs -lmupdf_darwin_arm64 -lmupdfthird_darwin_arm64 -lm",
+        ],
+        "@io_bazel_rules_go//go/platform:ios_amd64": [
+            "-Llibs -lmupdf_darwin_amd64 -lmupdfthird_darwin_amd64 -lm",
+        ],
+        "@io_bazel_rules_go//go/platform:ios_arm64": [
+            "-Llibs -lmupdf_darwin_arm64 -lmupdfthird_darwin_arm64 -lm",
+        ],
+        "@io_bazel_rules_go//go/platform:linux_386": [
+            "-Llibs -lmupdf_linux_386 -lmupdfthird_linux_386 -lm",
+        ],
+        "@io_bazel_rules_go//go/platform:linux_amd64": [
+            "-Llibs -lmupdf_linux_amd64 -lmupdfthird_linux_amd64 -lm",
+        ],
+        "@io_bazel_rules_go//go/platform:linux_arm": [
+            "-Llibs -lmupdf_linux_arm -lmupdfthird_linux_arm -lm",
+        ],
+        "@io_bazel_rules_go//go/platform:linux_arm64": [
+            "-Llibs -lmupdf_linux_arm64 -lmupdfthird_linux_arm64 -lm",
+        ],
+        "@io_bazel_rules_go//go/platform:windows_386": [
+            "-Llibs -lmupdf_windows_386 -lmupdfthird_windows_386 -lm -lcomdlg32 -lgdi32 -lmsvcr90 -Wl,--allow-multiple-definition",
+        ],
+        "@io_bazel_rules_go//go/platform:windows_amd64": [
+            "-Llibs -lmupdf_windows_amd64 -lmupdfthird_windows_amd64 -lm -lcomdlg32 -lgdi32 -Wl,--allow-multiple-definition",
+        ],
+        "//conditions:default": [],
+    }),
+    copts = ["-Iinclude"],
+    importpath = "github.com/gen2brain/go-fitz",
+    visibility = ["//visibility:public"],
+)
+
+go_test(
+    name = "go-fitz_test",
+    srcs = [
+        "example_test.go",
+        "fitz_content_types_test.go",
+        "fitz_test.go",
+    ],
+    data = glob(["testdata/**"]),
+    embed = [":go-fitz"],
+    embedsrcs = [
+        "testdata/test.bmp",
+        "testdata/test.cbz",
+        "testdata/test.epub",
+        "testdata/test.fb2",
+        "testdata/test.gif",
+        "testdata/test.jb2",
+        "testdata/test.jp2",
+        "testdata/test.jpg",
+        "testdata/test.jxr",
+        "testdata/test.pam",
+        "testdata/test.pbm",
+        "testdata/test.pdf",
+        "testdata/test.pfm",
+        "testdata/test.pgm",
+        "testdata/test.ppm",
+        "testdata/test.tif",
+        "testdata/test.xps",
+    ],
+)

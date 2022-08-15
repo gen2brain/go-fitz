@@ -1,0 +1,4 @@
+bazel-bin
+bazel-go-fitz
+bazel-out
+bazel-testlogs
