@@ -297,12 +297,23 @@ func (f *Document) Links(pageNumber int) ([]Link, error) {
 	links := C.fz_load_links(f.ctx, page)
 	defer C.fz_drop_link(f.ctx, links)
 
-	gLinks := make([]Link, 0)
-
+	linkCount := 0
 	for currLink := links; currLink != nil; currLink = currLink.next {
-		gLinks = append(gLinks, Link{
+		linkCount++
+	}
+
+	if linkCount == 0 {
+		return nil, nil
+	}
+
+	gLinks := make([]Link, linkCount)
+
+	currLink := links
+	for i := 0; i < linkCount; i++ {
+		gLinks[i] = Link{
 			URI: C.GoString(currLink.uri),
-		})
+		}
+		currLink = currLink.next
 	}
 
 	return gLinks, nil
