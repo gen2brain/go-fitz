@@ -57,6 +57,10 @@ type Outline struct {
 	Top float64
 }
 
+type Link struct {
+	URI string
+}
+
 // New returns new fitz document.
 func New(filename string) (f *Document, err error) {
 	f = &Document{}
@@ -277,6 +281,42 @@ func (f *Document) ImagePNG(pageNumber int, dpi float64) ([]byte, error) {
 	str := C.GoStringN(C.fz_string_from_buffer(f.ctx, buf), C.int(size))
 
 	return []byte(str), nil
+}
+
+func (f *Document) Links(pageNumber int) ([]Link, error) {
+	f.mtx.Lock()
+	defer f.mtx.Unlock()
+
+	if pageNumber >= f.NumPage() {
+		return nil, ErrPageMissing
+	}
+
+	page := C.fz_load_page(f.ctx, f.doc, C.int(pageNumber))
+	defer C.fz_drop_page(f.ctx, page)
+
+	links := C.fz_load_links(f.ctx, page)
+	defer C.fz_drop_link(f.ctx, links)
+
+	linkCount := 0
+	for currLink := links; currLink != nil; currLink = currLink.next {
+		linkCount++
+	}
+
+	if linkCount == 0 {
+		return nil, nil
+	}
+
+	gLinks := make([]Link, linkCount)
+
+	currLink := links
+	for i := 0; i < linkCount; i++ {
+		gLinks[i] = Link{
+			URI: C.GoString(currLink.uri),
+		}
+		currLink = currLink.next
+	}
+
+	return gLinks, nil
 }
 
 // Text returns text for given page number.

@@ -82,6 +82,28 @@ func TestImageFromMemory(t *testing.T) {
 	}
 }
 
+func TestLinks(t *testing.T) {
+	doc, err := New(filepath.Join("testdata", "test.pdf"))
+	if err != nil {
+		t.Error(err)
+	}
+
+	defer doc.Close()
+
+	links, err := doc.Links(2)
+	if err != nil {
+		t.Error(err)
+	}
+
+	if len(links) != 1 {
+		t.Error("expected 1 link, got", len(links))
+	}
+
+	if links[0].URI != "https://creativecommons.org/licenses/by-nc-sa/4.0/" {
+		t.Error("expected empty URI, got", links[0].URI)
+	}
+}
+
 func TestText(t *testing.T) {
 	doc, err := New(filepath.Join("testdata", "test.pdf"))
 	if err != nil {
