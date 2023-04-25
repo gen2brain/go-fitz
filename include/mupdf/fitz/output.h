@@ -1,4 +1,4 @@
-// Copyright (C) 2004-2021 Artifex Software, Inc.
+// Copyright (C) 2004-2022 Artifex Software, Inc.
 //
 // This file is part of MuPDF.
 //
@@ -110,6 +110,10 @@ struct fz_output
 	fz_stream_from_output_fn *as_stream;
 	fz_truncate_fn *truncate;
 	char *bp, *wp, *ep;
+	/* If buffered is non-zero, then we have that many
+	 * bits (1-7) waiting to be written in bits. */
+	int buffered;
+	int bits;
 };
 
 /**
@@ -253,6 +257,7 @@ void fz_truncate_output(fz_context *, fz_output *);
 	size: Size of data to write in bytes.
 */
 void fz_write_data(fz_context *ctx, fz_output *out, const void *data, size_t size);
+void fz_write_buffer(fz_context *ctx, fz_output *out, fz_buffer *data);
 
 /**
 	Write a string. Does not write zero terminator.
@@ -291,6 +296,17 @@ void fz_write_base64(fz_context *ctx, fz_output *out, const unsigned char *data,
 	newlines.
 */
 void fz_write_base64_buffer(fz_context *ctx, fz_output *out, fz_buffer *data, int newline);
+
+/**
+	Write num_bits of data to the end of the output stream, assumed to be packed
+	most significant bits first.
+*/
+void fz_write_bits(fz_context *ctx, fz_output *out, unsigned int data, int num_bits);
+
+/**
+	Sync to byte boundary after writing bits.
+*/
+void fz_write_bits_sync(fz_context *ctx, fz_output *out);
 
 /**
 	Our customised 'printf'-like string formatter.

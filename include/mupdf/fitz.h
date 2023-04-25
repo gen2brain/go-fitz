@@ -85,6 +85,9 @@ extern "C" {
 #include "mupdf/fitz/write-pixmap.h"
 #include "mupdf/fitz/output-svg.h"
 
+#include "mupdf/fitz/story.h"
+#include "mupdf/fitz/story-writer.h"
+
 #ifdef __cplusplus
 }
 #endif

@@ -1,4 +1,4 @@
-// Copyright (C) 2004-2021 Artifex Software, Inc.
+// Copyright (C) 2004-2023 Artifex Software, Inc.
 //
 // This file is part of MuPDF.
 //
@@ -105,6 +105,12 @@ fz_buffer *fz_new_buffer_from_shared_data(fz_context *ctx, const unsigned char *
 fz_buffer *fz_new_buffer_from_copied_data(fz_context *ctx, const unsigned char *data, size_t size);
 
 /**
+	Make a new buffer, containing a copy of the data used in
+	the original.
+*/
+fz_buffer *fz_clone_buffer(fz_context *ctx, fz_buffer *buf);
+
+/**
 	Create a new buffer with data decoded from a base64 input string.
 */
 fz_buffer *fz_new_buffer_from_base64(fz_context *ctx, const char *data, size_t size);
@@ -139,12 +145,32 @@ void fz_trim_buffer(fz_context *ctx, fz_buffer *buf);
 void fz_clear_buffer(fz_context *ctx, fz_buffer *buf);
 
 /**
+	Create a new buffer with a (subset of) the data from the buffer.
+
+	start: if >= 0, offset from start of buffer, if < 0 offset from end of buffer.
+
+	end: if >= 0, offset from start of buffer, if < 0 offset from end of buffer.
+
+*/
+fz_buffer *fz_slice_buffer(fz_context *ctx, fz_buffer *buf, int64_t start, int64_t end);
+
+/**
 	Append the contents of the source buffer onto the end of the
 	destination buffer, extending automatically as required.
 
 	Ownership of buffers does not change.
 */
 void fz_append_buffer(fz_context *ctx, fz_buffer *destination, fz_buffer *source);
+
+/**
+	Write a base64 encoded data block, optionally with periodic newlines.
+*/
+void fz_append_base64(fz_context *ctx, fz_buffer *out, const unsigned char *data, size_t size, int newline);
+
+/**
+	Append a base64 encoded fz_buffer, optionally with periodic newlines.
+*/
+void fz_append_base64_buffer(fz_context *ctx, fz_buffer *out, fz_buffer *data, int newline);
 
 /**
 	fz_append_*: Append data to a buffer.

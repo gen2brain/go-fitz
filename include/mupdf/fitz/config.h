@@ -92,7 +92,7 @@
 	unwanted fonts.
 */
 /* To avoid all noto fonts except CJK, enable: */
-#define TOFU 1
+#define TOFU 1 
 
 /* To skip the CJK font, enable: (this implicitly enables TOFU_CJK_EXT
  * and TOFU_CJK_LANG) */

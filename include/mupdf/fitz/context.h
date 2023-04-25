@@ -52,7 +52,6 @@ typedef struct
 	Exception macro definitions. Just treat these as a black box -
 	pay no attention to the man behind the curtain.
 */
-
 #define fz_var(var) fz_var_imp((void *)&(var))
 #define fz_try(ctx) if (!fz_setjmp(*fz_push_try(ctx))) if (fz_do_try(ctx)) do
 #define fz_always(ctx) while (0); if (fz_do_always(ctx)) do
@@ -61,6 +60,7 @@ typedef struct
 FZ_NORETURN void fz_vthrow(fz_context *ctx, int errcode, const char *, va_list ap);
 FZ_NORETURN void fz_throw(fz_context *ctx, int errcode, const char *, ...) FZ_PRINTFLIKE(3,4);
 FZ_NORETURN void fz_rethrow(fz_context *ctx);
+void fz_morph_error(fz_context *ctx, int fromcode, int tocode);
 void fz_vwarn(fz_context *ctx, const char *fmt, va_list ap);
 void fz_warn(fz_context *ctx, const char *fmt, ...) FZ_PRINTFLIKE(2,3);
 const char *fz_caught_message(fz_context *ctx);
@@ -695,6 +695,21 @@ fz_keep_imp(fz_context *ctx, void *p, int *refs)
 
 static inline void *
 fz_keep_imp_locked(fz_context *ctx FZ_UNUSED, void *p, int *refs)
+{
+	if (p)
+	{
+		(void)Memento_checkIntPointerOrNull(refs);
+		if (*refs > 0)
+		{
+			(void)Memento_takeRef(p);
+			++*refs;
+		}
+	}
+	return p;
+}
+
+static inline void *
+fz_keep_imp8_locked(fz_context *ctx FZ_UNUSED, void *p, int8_t *refs)
 {
 	if (p)
 	{
