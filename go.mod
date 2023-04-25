@@ -1,3 +1,3 @@
 module github.com/gen2brain/go-fitz
 
-go 1.17
+go 1.18
