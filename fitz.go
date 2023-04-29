@@ -21,11 +21,11 @@ fz_document *open_document(fz_context *ctx, const char *filename) {
 	return doc;
 }
 
-fz_document *open_document_with_stream(fz_context *ctx, const char *filename, fz_stream *stream) {
+fz_document *open_document_with_stream(fz_context *ctx, const char *magic, fz_stream *stream) {
 	fz_document *doc;
 
 	fz_try(ctx) {
-		doc = fz_open_document_with_stream(ctx, filename, stream);
+		doc = fz_open_document_with_stream(ctx, magic, stream);
 	}
 	fz_catch(ctx) {
 		return NULL;
