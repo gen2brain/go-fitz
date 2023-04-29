@@ -19,7 +19,6 @@ package main
 import (
 	"fmt"
 	"image/jpeg"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 
@@ -34,7 +33,7 @@ func main() {
 
 	defer doc.Close()
 
-	tmpDir, err := ioutil.TempDir(os.TempDir(), "fitz")
+	tmpDir, err := os.MkdirTemp(os.TempDir(), "fitz")
 	if err != nil {
 		panic(err)
 	}

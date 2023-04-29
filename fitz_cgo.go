@@ -1,5 +1,4 @@
 //go:build !extlib
-// +build !extlib
 
 package fitz
 

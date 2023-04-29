@@ -1,5 +1,4 @@
 //go:build extlib && pkgconfig
-// +build extlib,pkgconfig
 
 package fitz
 

@@ -40,7 +40,6 @@ import (
 	"errors"
 	"image"
 	"io"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"sync"
@@ -101,7 +100,7 @@ func New(filename string) (f *Document, err error) {
 		return
 	}
 
-	b, e := ioutil.ReadFile(filename)
+	b, e := os.ReadFile(filename)
 	if e != nil {
 		err = ErrOpenDocument
 		return
@@ -131,7 +130,7 @@ func New(filename string) (f *Document, err error) {
 	}
 
 	ret := C.fz_needs_password(f.ctx, f.doc)
-	v := bool(int(ret) != 0)
+	v := int(ret) != 0
 	if v {
 		err = ErrNeedsPassword
 	}
@@ -176,7 +175,7 @@ func NewFromMemory(b []byte) (f *Document, err error) {
 	}
 
 	ret := C.fz_needs_password(f.ctx, f.doc)
-	v := bool(int(ret) != 0)
+	v := int(ret) != 0
 	if v {
 		err = ErrNeedsPassword
 	}
@@ -186,7 +185,7 @@ func NewFromMemory(b []byte) (f *Document, err error) {
 
 // NewFromReader returns new fitz document from io.Reader.
 func NewFromReader(r io.Reader) (f *Document, err error) {
-	b, e := ioutil.ReadAll(r)
+	b, e := io.ReadAll(r)
 	if e != nil {
 		err = e
 		return

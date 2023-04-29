@@ -157,7 +157,7 @@ func isXPS(b []byte) bool {
 }
 
 // Checks for "<?xml" string at the beginning of the file.
-// Possible occurences of a UTF-8 BOM are also considered.
+// Possible occurrences of a UTF-8 BOM are also considered.
 func isXML(b []byte) bool {
 	switch {
 	// w/o UTF-8 BOM:
