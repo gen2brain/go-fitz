@@ -7,6 +7,32 @@ package fitz
 #include <stdlib.h>
 
 const char *fz_version = FZ_VERSION;
+
+fz_document *open_document(fz_context *ctx, const char *filename) {
+	fz_document *doc;
+
+	fz_try(ctx) {
+		doc = fz_open_document(ctx, filename);
+	}
+	fz_catch(ctx) {
+		return NULL;
+	}
+
+	return doc;
+}
+
+fz_document *open_document_with_stream(fz_context *ctx, const char *filename, fz_stream *stream) {
+	fz_document *doc;
+
+	fz_try(ctx) {
+		doc = fz_open_document_with_stream(ctx, filename, stream);
+	}
+	fz_catch(ctx) {
+		return NULL;
+	}
+
+	return doc;
+}
 */
 import "C"
 
@@ -98,7 +124,7 @@ func New(filename string) (f *Document, err error) {
 	cfilename := C.CString(filename)
 	defer C.free(unsafe.Pointer(cfilename))
 
-	f.doc = C.fz_open_document(f.ctx, cfilename)
+	f.doc = C.open_document(f.ctx, cfilename)
 	if f.doc == nil {
 		err = ErrOpenDocument
 		return
@@ -144,7 +170,7 @@ func NewFromMemory(b []byte) (f *Document, err error) {
 	cmagic := C.CString(magic)
 	defer C.free(unsafe.Pointer(cmagic))
 
-	f.doc = C.fz_open_document_with_stream(f.ctx, cmagic, f.stream)
+	f.doc = C.open_document_with_stream(f.ctx, cmagic, f.stream)
 	if f.doc == nil {
 		err = ErrOpenDocument
 	}
