@@ -1,4 +1,4 @@
-package fitz
+package fitz_test
 
 import (
 	"fmt"
@@ -8,17 +8,19 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+
+	"github.com/gen2brain/go-fitz"
 )
 
 func TestImage(t *testing.T) {
-	doc, err := New(filepath.Join("testdata", "test.pdf"))
+	doc, err := fitz.New(filepath.Join("testdata", "test.pdf"))
 	if err != nil {
 		t.Error(err)
 	}
 
 	defer doc.Close()
 
-	tmpDir, err := ioutil.TempDir(os.TempDir(), "fitz")
+	tmpDir, err := os.MkdirTemp(os.TempDir(), "fitz")
 	if err != nil {
 		t.Error(err)
 	}
@@ -44,19 +46,19 @@ func TestImage(t *testing.T) {
 }
 
 func TestImageFromMemory(t *testing.T) {
-	b, err := ioutil.ReadFile(filepath.Join("testdata", "test.pdf"))
+	b, err := os.ReadFile(filepath.Join("testdata", "test.pdf"))
 	if err != nil {
 		t.Error(err)
 	}
 
-	doc, err := NewFromMemory(b)
+	doc, err := fitz.NewFromMemory(b)
 	if err != nil {
 		t.Error(err)
 	}
 
 	defer doc.Close()
 
-	tmpDir, err := ioutil.TempDir(os.TempDir(), "fitz")
+	tmpDir, err := os.MkdirTemp(os.TempDir(), "fitz")
 	if err != nil {
 		t.Error(err)
 	}
@@ -84,7 +86,7 @@ func TestImageFromMemory(t *testing.T) {
 }
 
 func TestLinks(t *testing.T) {
-	doc, err := New(filepath.Join("testdata", "test.pdf"))
+	doc, err := fitz.New(filepath.Join("testdata", "test.pdf"))
 	if err != nil {
 		t.Error(err)
 	}
@@ -106,14 +108,14 @@ func TestLinks(t *testing.T) {
 }
 
 func TestText(t *testing.T) {
-	doc, err := New(filepath.Join("testdata", "test.pdf"))
+	doc, err := fitz.New(filepath.Join("testdata", "test.pdf"))
 	if err != nil {
 		t.Error(err)
 	}
 
 	defer doc.Close()
 
-	tmpDir, err := ioutil.TempDir(os.TempDir(), "fitz")
+	tmpDir, err := os.MkdirTemp(os.TempDir(), "fitz")
 	if err != nil {
 		t.Error(err)
 	}
@@ -139,7 +141,7 @@ func TestText(t *testing.T) {
 }
 
 func TestHTML(t *testing.T) {
-	doc, err := New(filepath.Join("testdata", "test.pdf"))
+	doc, err := fitz.New(filepath.Join("testdata", "test.pdf"))
 	if err != nil {
 		t.Error(err)
 	}
@@ -172,7 +174,7 @@ func TestHTML(t *testing.T) {
 }
 
 func TestSVG(t *testing.T) {
-	doc, err := New(filepath.Join("testdata", "test.pdf"))
+	doc, err := fitz.New(filepath.Join("testdata", "test.pdf"))
 	if err != nil {
 		t.Error(err)
 	}
@@ -205,7 +207,7 @@ func TestSVG(t *testing.T) {
 }
 
 func TestToC(t *testing.T) {
-	doc, err := New(filepath.Join("testdata", "test.pdf"))
+	doc, err := fitz.New(filepath.Join("testdata", "test.pdf"))
 	if err != nil {
 		t.Error(err)
 	}
@@ -219,7 +221,7 @@ func TestToC(t *testing.T) {
 }
 
 func TestMetadata(t *testing.T) {
-	doc, err := New(filepath.Join("testdata", "test.pdf"))
+	doc, err := fitz.New(filepath.Join("testdata", "test.pdf"))
 	if err != nil {
 		t.Error(err)
 	}
@@ -233,7 +235,7 @@ func TestMetadata(t *testing.T) {
 }
 
 func TestBound(t *testing.T) {
-	doc, err := New(filepath.Join("testdata", "test.pdf"))
+	doc, err := fitz.New(filepath.Join("testdata", "test.pdf"))
 	if err != nil {
 		t.Error(err)
 	}
@@ -252,7 +254,7 @@ func TestBound(t *testing.T) {
 	}
 
 	_, err = doc.Bound(doc.NumPage())
-	if err != ErrPageMissing {
+	if err != fitz.ErrPageMissing {
 		t.Error(fmt.Errorf("ErrPageMissing not returned got %v", err))
 	}
 }

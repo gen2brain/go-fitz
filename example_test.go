@@ -1,22 +1,23 @@
-package fitz
+package fitz_test
 
 import (
 	"fmt"
 	"image/jpeg"
-	"io/ioutil"
 	"os"
 	"path/filepath"
+
+	"github.com/gen2brain/go-fitz"
 )
 
 func ExampleNew() {
-	doc, err := New("test.pdf")
+	doc, err := fitz.New("test.pdf")
 	if err != nil {
 		panic(err)
 	}
 
 	defer doc.Close()
 
-	tmpDir, err := ioutil.TempDir(os.TempDir(), "fitz")
+	tmpDir, err := os.MkdirTemp(os.TempDir(), "fitz")
 	if err != nil {
 		panic(err)
 	}
