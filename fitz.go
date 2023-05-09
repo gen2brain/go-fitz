@@ -82,6 +82,7 @@ type Outline struct {
 	Top float64
 }
 
+// Link type.
 type Link struct {
 	URI string
 }
@@ -308,6 +309,7 @@ func (f *Document) ImagePNG(pageNumber int, dpi float64) ([]byte, error) {
 	return []byte(str), nil
 }
 
+// Links returns slice of links for given page number.
 func (f *Document) Links(pageNumber int) ([]Link, error) {
 	f.mtx.Lock()
 	defer f.mtx.Unlock()
@@ -537,7 +539,7 @@ func (f *Document) Metadata() map[string]string {
 	return data
 }
 
-// Gives the Bounds of a given Page in the document.
+// Bound gives the Bounds of a given Page in the document.
 func (f *Document) Bound(pageNumber int) (image.Rectangle, error) {
 	f.mtx.Lock()
 	defer f.mtx.Unlock()
