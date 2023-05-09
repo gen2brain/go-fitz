@@ -57,45 +57,5 @@ func main() {
 
 		f.Close()
 	}
-
-	// Extract pages as text
-	for n := 0; n < doc.NumPage(); n++ {
-		text, err := doc.Text(n)
-		if err != nil {
-			panic(err)
-		}
-
-		f, err := os.Create(filepath.Join(tmpDir, fmt.Sprintf("test%03d.txt", n)))
-		if err != nil {
-			panic(err)
-		}
-
-		_, err = f.WriteString(text)
-		if err != nil {
-			panic(err)
-		}
-
-		f.Close()
-	}
-
-	// Extract pages as html
-	for n := 0; n < doc.NumPage(); n++ {
-		html, err := doc.HTML(n, true)
-		if err != nil {
-			panic(err)
-		}
-
-		f, err := os.Create(filepath.Join(tmpDir, fmt.Sprintf("test%03d.html", n)))
-		if err != nil {
-			panic(err)
-		}
-
-		_, err = f.WriteString(html)
-		if err != nil {
-			panic(err)
-		}
-
-		f.Close()
-	}
 }
 ```
