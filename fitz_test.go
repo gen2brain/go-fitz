@@ -2,6 +2,7 @@ package fitz
 
 import (
 	"fmt"
+	"image"
 	"image/jpeg"
 	"io/ioutil"
 	"os"
@@ -228,5 +229,30 @@ func TestMetadata(t *testing.T) {
 	meta := doc.Metadata()
 	if len(meta) == 0 {
 		t.Error(fmt.Errorf("metadata is empty"))
+	}
+}
+
+func TestBound(t *testing.T) {
+	doc, err := New(filepath.Join("testdata", "test.pdf"))
+	if err != nil {
+		t.Error(err)
+	}
+
+	defer doc.Close()
+	expected := image.Rect(0, 0, 612, 792)
+
+	for i := 0; i < doc.NumPage(); i++ {
+		bound, err := doc.Bound(i)
+		if err != nil {
+			t.Error(err)
+		}
+		if bound != expected {
+			t.Error(fmt.Errorf("bounds didn't match go %v when expedient %v", bound, expected))
+		}
+	}
+
+	_, err = doc.Bound(doc.NumPage())
+	if err != ErrPageMissing {
+		t.Error(fmt.Errorf("ErrPageMissing not returned got %v", err))
 	}
 }

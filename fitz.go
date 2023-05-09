@@ -537,6 +537,23 @@ func (f *Document) Metadata() map[string]string {
 	return data
 }
 
+// Gives the Bounds of a given Page in the document.
+func (f *Document) Bound(pageNumber int) (image.Rectangle, error) {
+	f.mtx.Lock()
+	defer f.mtx.Unlock()
+
+	if pageNumber >= f.NumPage() {
+		return image.Rectangle{}, ErrPageMissing
+	}
+
+	page := C.fz_load_page(f.ctx, f.doc, C.int(pageNumber))
+	defer C.fz_drop_page(f.ctx, page)
+
+	var bounds C.fz_rect
+	bounds = C.fz_bound_page(f.ctx, page)
+	return image.Rect(int(bounds.x0), int(bounds.y0), int(bounds.x1), int(bounds.y1)), nil
+}
+
 // Close closes the underlying fitz document.
 func (f *Document) Close() error {
 	if f.stream != nil {
