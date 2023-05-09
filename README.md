@@ -1,5 +1,5 @@
 ## go-fitz
-[![Build Status](https://github.com/gen2brain/go-fitz/actions/workflows/build.yml/badge.svg)](https://github.com/gen2brain/go-fitz/actions)
+[![Build Status](https://github.com/gen2brain/go-fitz/actions/workflows/test.yml/badge.svg)](https://github.com/gen2brain/go-fitz/actions)
 [![GoDoc](https://godoc.org/github.com/gen2brain/go-fitz?status.svg)](https://godoc.org/github.com/gen2brain/go-fitz)
 [![Go Report Card](https://goreportcard.com/badge/github.com/gen2brain/go-fitz?branch=master)](https://goreportcard.com/report/github.com/gen2brain/go-fitz)
 
