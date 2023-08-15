@@ -1,0 +1,95 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_library", "go_test")
+load("@bazelize//rules/common:root.bzl", "byte_repo_root")
+
+byte_repo_root(
+    repo_name = "x",
+)
+
+go_library(
+    name = "x",
+    srcs = [
+        "fitz.go",
+        "fitz_cgo.go",
+        "fitz_content_types.go",
+    ],
+    cgo = True,
+    clinkopts = select({
+        "@io_bazel_rules_go//go/platform:android_386": [
+            "-Llibs -lmupdf_linux_386 -lmupdfthird_linux_386 -lm",
+        ],
+        "@io_bazel_rules_go//go/platform:android_amd64": [
+            "-Llibs -lmupdf_linux_amd64 -lmupdfthird_linux_amd64 -lm",
+        ],
+        "@io_bazel_rules_go//go/platform:android_arm": [
+            "-Llibs -lmupdf_android_arm -lmupdfthird_android_arm -lm -llog",
+        ],
+        "@io_bazel_rules_go//go/platform:android_arm64": [
+            "-Llibs -lmupdf_android_arm64 -lmupdfthird_android_arm64 -lm -llog",
+        ],
+        "@io_bazel_rules_go//go/platform:darwin_amd64": [
+            "-Llibs -lmupdf_darwin_amd64 -lmupdfthird_darwin_amd64 -lm",
+        ],
+        "@io_bazel_rules_go//go/platform:darwin_arm64": [
+            "-Llibs -lmupdf_darwin_arm64 -lmupdfthird_darwin_arm64 -lm",
+        ],
+        "@io_bazel_rules_go//go/platform:ios_amd64": [
+            "-Llibs -lmupdf_darwin_amd64 -lmupdfthird_darwin_amd64 -lm",
+        ],
+        "@io_bazel_rules_go//go/platform:ios_arm64": [
+            "-Llibs -lmupdf_darwin_arm64 -lmupdfthird_darwin_arm64 -lm",
+        ],
+        "@io_bazel_rules_go//go/platform:linux_386": [
+            "-Llibs -lmupdf_linux_386 -lmupdfthird_linux_386 -lm",
+        ],
+        "@io_bazel_rules_go//go/platform:linux_amd64": [
+            "-Llibs -lmupdf_linux_amd64 -lmupdfthird_linux_amd64 -lm",
+        ],
+        "@io_bazel_rules_go//go/platform:linux_arm": [
+            "-Llibs -lmupdf_linux_arm -lmupdfthird_linux_arm -lm",
+        ],
+        "@io_bazel_rules_go//go/platform:linux_arm64": [
+            "-Llibs -lmupdf_linux_arm64 -lmupdfthird_linux_arm64 -lm",
+        ],
+        "@io_bazel_rules_go//go/platform:windows_386": [
+            "-Llibs -lmupdf_windows_386 -lmupdfthird_windows_386 -lm -lcomdlg32 -lgdi32 -lmsvcr90 -Wl,--allow-multiple-definition",
+        ],
+        "@io_bazel_rules_go//go/platform:windows_amd64": [
+            "-Llibs -lmupdf_windows_amd64 -lmupdfthird_windows_amd64 -lm -lcomdlg32 -lgdi32 -Wl,--allow-multiple-definition",
+        ],
+        "//conditions:default": [],
+    }),
+    copts = ["-Iinclude"],
+    importpath = "code.byted.org/x",
+    visibility = ["//visibility:public"],
+)
+
+go_test(
+    name = "x_test",
+    srcs = [
+        "example_test.go",
+        "fitz_content_types_test.go",
+        "fitz_test.go",
+    ],
+    data = glob(["testdata/**"]),
+    embed = [":x"],
+    embedsrcs = [
+        "testdata/test.bmp",
+        "testdata/test.cbz",
+        "testdata/test.epub",
+        "testdata/test.fb2",
+        "testdata/test.gif",
+        "testdata/test.jb2",
+        "testdata/test.jp2",
+        "testdata/test.jpg",
+        "testdata/test.jxr",
+        "testdata/test.pam",
+        "testdata/test.pbm",
+        "testdata/test.pdf",
+        "testdata/test.pfm",
+        "testdata/test.pgm",
+        "testdata/test.ppm",
+        "testdata/test.tif",
+        "testdata/test.xps",
+    ],
+    deps = ["@com_github_gen2brain_go_fitz//:go_default_library"],
+)

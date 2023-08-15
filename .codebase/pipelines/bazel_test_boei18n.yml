@@ -1,0 +1,11 @@
+template: bazel
+name: Bazel boei18n
+job_name: Bazel Build Test
+trigger:
+  change:
+    types: [ create, push, submit, update ]
+env: boei18n
+enable_byteview: false
+enable_proxy: false
+commands:
+  - bazel build //...
