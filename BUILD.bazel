@@ -5,13 +5,37 @@ byte_repo_root(
     repo_name = "x",
 )
 
+cc_library(
+    name = "clib",
+    srcs = select({
+        "@io_bazel_rules_go//go/platform:darwin_amd64": [
+            "libs/libmupdf_darwin_amd64.a",
+            "libs/libmupdfthird_darwin_amd64.a",
+        ],
+        "@io_bazel_rules_go//go/platform:darwin_arm64": [
+            "libs/libmupdf_darwin_arm64.a",
+            "libs/libmupdfthird_darwin_arm64.a",
+        ],
+        "@io_bazel_rules_go//go/platform:linux_amd64": [
+            "libs/libmupdf_linux_amd64.a",
+            "libs/libmupdfthird_linux_amd64.a",
+        ],
+        "@io_bazel_rules_go//go/platform:linux_arm64": [
+            "libs/libmupdf_linux_arm64.a",
+            "libs/libmupdfthird_linux_arm64.a",
+        ],
+        "//conditions:default": ["UNSUPPORTED_PLATFORM"],
+    }),
+)
+
 go_library(
     name = "x",
     srcs = [
         "fitz.go",
         "fitz_cgo.go",
         "fitz_content_types.go",
-    ],
+    ] + glob(["include/**/*.h"]),
+    cdeps = [":clib"],
     cgo = True,
     clinkopts = select({
         "@io_bazel_rules_go//go/platform:android_386": [
@@ -59,7 +83,7 @@ go_library(
         "//conditions:default": [],
     }),
     copts = ["-Iinclude"],
-    importpath = "code.byted.org/x",
+    importpath = "github.com/gen2brain/go-fitz",
     visibility = ["//visibility:public"],
 )
 
