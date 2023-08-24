@@ -17,8 +17,8 @@
 //
 // Alternative licensing terms are available from the licensor.
 // For commercial licensing, see <https://www.artifex.com/> or contact
-// Artifex Software, Inc., 1305 Grant Avenue - Suite 200, Novato,
-// CA 94945, U.S.A., +1(415)492-9861, for further information.
+// Artifex Software, Inc., 39 Mesa Street, Suite 108A, San Francisco,
+// CA 94129, USA, for further information.
 
 #ifndef FZ_CONFIG_H
 
@@ -92,7 +92,7 @@
 	unwanted fonts.
 */
 /* To avoid all noto fonts except CJK, enable: */
-#define TOFU 1 
+#define TOFU 1
 
 /* To skip the CJK font, enable: (this implicitly enables TOFU_CJK_EXT
  * and TOFU_CJK_LANG) */

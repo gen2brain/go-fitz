@@ -17,8 +17,8 @@
 //
 // Alternative licensing terms are available from the licensor.
 // For commercial licensing, see <https://www.artifex.com/> or contact
-// Artifex Software, Inc., 1305 Grant Avenue - Suite 200, Novato,
-// CA 94945, U.S.A., +1(415)492-9861, for further information.
+// Artifex Software, Inc., 39 Mesa Street, Suite 108A, San Francisco,
+// CA 94129, USA, for further information.
 
 #ifndef MUPDF_FITZ_STREAM_H
 #define MUPDF_FITZ_STREAM_H
@@ -54,6 +54,15 @@ typedef struct fz_stream fz_stream;
 	and Linux, the encoding they use is UTF-8 anyway).
 */
 fz_stream *fz_open_file(fz_context *ctx, const char *filename);
+
+/**
+	Open the named file and wrap it in a stream.
+
+	Does the same as fz_open_file, but in the event the file
+	does not open, it will return NULL rather than throw an
+	exception.
+*/
+fz_stream *fz_try_open_file(fz_context *ctx, const char *name);
 
 #ifdef _WIN32
 /**
@@ -179,6 +188,14 @@ fz_buffer *fz_read_all(fz_context *ctx, fz_stream *stm, size_t initial);
 	Read all the contents of a file into a buffer.
 */
 fz_buffer *fz_read_file(fz_context *ctx, const char *filename);
+
+/**
+	Read all the contents of a file into a buffer.
+
+	Returns NULL if the file does not exist, otherwise
+	behaves exactly as fz_read_file.
+*/
+fz_buffer *fz_try_read_file(fz_context *ctx, const char *filename);
 
 /**
 	fz_read_[u]int(16|24|32|64)(_le)?
