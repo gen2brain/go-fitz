@@ -3,8 +3,11 @@
 package fitz
 
 /*
+#cgo CFLAGS: -I./include
+
 #include <mupdf/fitz.h>
 #include <stdlib.h>
+#include <pthread.h>
 
 const char *fz_version = FZ_VERSION;
 
@@ -33,6 +36,45 @@ fz_document *open_document_with_stream(fz_context *ctx, const char *magic, fz_st
 
 	return doc;
 }
+
+void fail(char *msg) {
+	fprintf(stderr, "%s\n", msg);
+	abort();
+}
+
+void lock_mutex(void *user, int lock) {
+	pthread_mutex_t *mutex = (pthread_mutex_t *) user;
+
+	if (pthread_mutex_lock(&mutex[lock]) != 0)
+		fail("pthread_mutex_lock()");
+}
+
+void unlock_mutex(void *user, int lock) {
+	pthread_mutex_t *mutex = (pthread_mutex_t *) user;
+
+	if (pthread_mutex_unlock(&mutex[lock]) != 0)
+		fail("pthread_mutex_unlock()");
+}
+
+pthread_mutex_t* new_mutex() {
+	pthread_mutex_t* mutex = malloc(sizeof(pthread_mutex_t) * FZ_LOCK_MAX);
+
+	for (int i = 0; i < FZ_LOCK_MAX; i++) {
+		if (pthread_mutex_init(&mutex[i], NULL) != 0)
+			fail("pthread_mutex_init()");
+	}
+	return mutex;
+}
+
+typedef fz_locks_context fz_locks_context_t;
+
+fz_locks_context_t* create_fz_locks_context(pthread_mutex_t* mutex) {
+	fz_locks_context* lock_ctx = malloc(sizeof(fz_locks_context));
+	lock_ctx->user = mutex;
+	lock_ctx->lock = lock_mutex;
+	lock_ctx->unlock = unlock_mutex;
+	return lock_ctx;
+}
 */
 import "C"
 
@@ -58,6 +100,19 @@ var (
 	ErrNeedsPassword = errors.New("fitz: document needs password")
 	ErrLoadOutline   = errors.New("fitz: cannot load outline")
 )
+
+var (
+	// needed for multithreading
+	locks   *C.fz_locks_context_t
+	mutexs  *C.pthread_mutex_t
+	rootCtx *C.struct_fz_context
+)
+
+func init() {
+	mutexs = C.new_mutex()
+	locks = C.create_fz_locks_context(mutexs)
+	rootCtx = (*C.struct_fz_context)(unsafe.Pointer(C.fz_new_context_imp(nil, locks, C.FZ_STORE_UNLIMITED, C.fz_version)))
+}
 
 // Document represents fitz document.
 type Document struct {
@@ -101,7 +156,7 @@ func New(filename string) (f *Document, err error) {
 		return
 	}
 
-	f.ctx = (*C.struct_fz_context)(unsafe.Pointer(C.fz_new_context_imp(nil, nil, C.FZ_STORE_UNLIMITED, C.fz_version)))
+	f.ctx = C.fz_clone_context(rootCtx)
 	if f.ctx == nil {
 		err = ErrCreateContext
 		return
@@ -131,7 +186,7 @@ func New(filename string) (f *Document, err error) {
 func NewFromMemory(b []byte) (f *Document, err error) {
 	f = &Document{}
 
-	f.ctx = (*C.struct_fz_context)(unsafe.Pointer(C.fz_new_context_imp(nil, nil, C.FZ_STORE_UNLIMITED, C.fz_version)))
+	f.ctx = C.fz_clone_context(rootCtx)
 	if f.ctx == nil {
 		err = ErrCreateContext
 		return
