@@ -1,5 +1,7 @@
 package fitz
 
+import "bytes"
+
 // contentType returns document MIME type.
 func contentType(b []byte) string {
 	l := len(b)
@@ -30,6 +32,9 @@ func contentType(b []byte) string {
 		return ""
 	case isTIFF(b):
 		return "image/tiff"
+	case isSVG(b):
+		// min of 41 bytes: <svg xmlns="http://www.w3.org/2000/svg"/>
+		return "image/svg+xml"
 	case l < 64:
 		return ""
 	case isJPEG(b):
@@ -42,6 +47,8 @@ func contentType(b []byte) string {
 		return "image/vnd.ms-photo"
 	case isPDF(b):
 		return "application/pdf"
+	case isPSD(b):
+		return "image/vnd.adobe.photoshop"
 	case isZIP(b):
 		switch {
 		case isEPUB(b):
@@ -57,6 +64,8 @@ func contentType(b []byte) string {
 		// fitz will consider it an FB2
 		// minimal valid FB2 w/o content is >64 bytes
 		return "text/xml"
+	case isMOBI(b):
+		return "application/x-mobipocket-ebook"
 	default:
 		return ""
 	}
@@ -129,6 +138,11 @@ func isPDF(b []byte) bool {
 	return b[0] == 0x25 && b[1] == 0x50 && b[2] == 0x44 && b[3] == 0x46
 }
 
+// PSD magic number 38 42 50 53 = "8BPS"
+func isPSD(b []byte) bool {
+	return b[0] == 0x38 && b[1] == 0x42 && b[2] == 0x50 && b[3] == 0x53
+}
+
 // Non-empty ZIP archive magic number 50 4B 03 04.
 func isZIP(b []byte) bool {
 	return b[0] == 0x50 && b[1] == 0x4B && b[2] == 0x03 && b[3] == 0x04
@@ -146,6 +160,23 @@ func isEPUB(b []byte) bool {
 		b[54] == 0x2B && b[55] == 0x7A && b[56] == 0x69 && b[57] == 0x70
 }
 
+// MOBI contains either BOOKMOBI or TEXtREAd string after a 60 bytes offset.
+// The magic string is then followed by at least 10 bytes of information.
+func isMOBI(b []byte) bool {
+	switch {
+	case len(b) < 78:
+		return false
+	case b[60] == 0x42 && b[61] == 0x4F && b[62] == 0x4F && b[63] == 0x4B &&
+		b[64] == 0x4D && b[65] == 0x4F && b[66] == 0x42 && b[67] == 0x49:
+		return true
+	case b[60] == 0x54 && b[61] == 0x45 && b[62] == 0x58 && b[63] == 0x74 &&
+		b[64] == 0x52 && b[65] == 0x45 && b[66] == 0x41 && b[67] == 0x64:
+		return true
+	default:
+		return false
+	}
+}
+
 // Looks for a file named "[Content_Types].xml" at the root of a ZIP archive.
 // MS Office apps put this file first within the archive enabling for fast detection.
 func isXPS(b []byte) bool {
@@ -154,6 +185,51 @@ func isXPS(b []byte) bool {
 		b[38] == 0x5F && b[39] == 0x54 && b[40] == 0x79 && b[41] == 0x70 &&
 		b[42] == 0x65 && b[43] == 0x73 && b[44] == 0x5D && b[45] == 0x2E &&
 		b[46] == 0x78 && b[47] == 0x6D && b[48] == 0x6C
+}
+
+// Checks for "<svg" string after XML prolog, DOCTYPE and comments.
+// See svg_recognize_doc_content in mupdf/source/svg/svg-doc.c
+func isSVG(b []byte) bool {
+	if b[0] == 0xEF && b[1] == 0xBB {
+		b = b[2:] // ignore UTF-8 BOM
+	}
+	r := bytes.NewReader(b)
+ParseSVGText:
+	for {
+		if c, err := r.ReadByte(); err == nil {
+			switch c {
+			case 0x09, 0x0A, 0x0D, 0x20: // whitespace
+				continue
+			case 0x3C: // <
+				goto ParseSVGElement
+			default:
+				return false
+			}
+		}
+		return false
+	}
+ParseSVGElement:
+	if c, err := r.ReadByte(); err != nil {
+		return false
+	} else if c == 0x21 || c == 0x3F { // ! or ?
+		goto ParseSVGComment
+	} else if c != 0x73 { // s
+		return false
+	} else if c, err := r.ReadByte(); err != nil || c != 0x76 { // v
+		return false
+	} else if c, err := r.ReadByte(); err != nil || c != 0x67 { // g
+		return false
+	}
+	return true
+ParseSVGComment:
+	for {
+		c, err := r.ReadByte()
+		if err != nil {
+			return false
+		} else if c == 0x3E { // >
+			goto ParseSVGText
+		}
+	}
 }
 
 // Checks for "<?xml" string at the beginning of the file.

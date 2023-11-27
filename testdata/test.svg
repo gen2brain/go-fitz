@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">
+<!-- SVG superellipse example -->
+<svg width="2" height="2" viewBox="0 0 2 2">
+   <path fill="#000" d="M 0,1 C 0,0 0,0 1,0 S 2,0 2,1 2,2 1,2 0,2 0,1"/>
+</svg>

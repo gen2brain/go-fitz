@@ -25,6 +25,13 @@ func TestContentTypeEPUB(t *testing.T) {
 	testContentType("application/epub+zip", epub, t)
 }
 
+//go:embed testdata/test.mobi
+var mobi []byte
+
+func TestContentTypeMOBI(t *testing.T) {
+	testContentType("application/x-mobipocket-ebook", mobi, t)
+}
+
 //go:embed testdata/test.cbz
 var cbz []byte
 
@@ -95,6 +102,13 @@ func TestContentTypePDF(t *testing.T) {
 	testContentType("application/pdf", pdf, t)
 }
 
+//go:embed testdata/test.psd
+var psd []byte
+
+func TestContentTypePSD(t *testing.T) {
+	testContentType("image/vnd.adobe.photoshop", psd, t)
+}
+
 //go:embed testdata/test.pfm
 var pfm []byte
 
@@ -114,6 +128,13 @@ var ppm []byte
 
 func TestContentTypePPM(t *testing.T) {
 	testContentType("image/x-portable-pixmap", ppm, t)
+}
+
+//go:embed testdata/test.svg
+var svg []byte
+
+func TestContentTypeSVG(t *testing.T) {
+	testContentType("image/svg+xml", svg, t)
 }
 
 //go:embed testdata/test.tif
