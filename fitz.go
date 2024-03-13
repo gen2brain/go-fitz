@@ -225,7 +225,7 @@ func (f *Document) ImageDPI(pageNumber int, dpi float64) (image.Image, error) {
 	}
 
 	C.fz_clear_pixmap_with_value(f.ctx, pixmap, C.int(0xff))
-	//defer C.fz_drop_pixmap(f.ctx, pixmap)
+	defer C.fz_drop_pixmap(f.ctx, pixmap)
 
 	device := C.fz_new_draw_device(f.ctx, ctm, pixmap)
 	C.fz_enable_device_hints(f.ctx, device, C.FZ_NO_CACHE)
@@ -277,7 +277,7 @@ func (f *Document) ImagePNG(pageNumber int, dpi float64) ([]byte, error) {
 	}
 
 	C.fz_clear_pixmap_with_value(f.ctx, pixmap, C.int(0xff))
-	//defer C.fz_drop_pixmap(f.ctx, pixmap)
+	defer C.fz_drop_pixmap(f.ctx, pixmap)
 
 	device := C.fz_new_draw_device(f.ctx, ctm, pixmap)
 	C.fz_enable_device_hints(f.ctx, device, C.FZ_NO_CACHE)
