@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"image"
 	"image/jpeg"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"testing"
@@ -24,6 +23,8 @@ func TestImage(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
+
+	defer os.RemoveAll(tmpDir)
 
 	for n := 0; n < doc.NumPage(); n++ {
 		img, err := doc.Image(n)
@@ -120,6 +121,8 @@ func TestText(t *testing.T) {
 		t.Error(err)
 	}
 
+	defer os.RemoveAll(tmpDir)
+
 	for n := 0; n < doc.NumPage(); n++ {
 		text, err := doc.Text(n)
 		if err != nil {
@@ -148,10 +151,12 @@ func TestHTML(t *testing.T) {
 
 	defer doc.Close()
 
-	tmpDir, err := ioutil.TempDir(os.TempDir(), "fitz")
+	tmpDir, err := os.MkdirTemp(os.TempDir(), "fitz")
 	if err != nil {
 		t.Error(err)
 	}
+
+	defer os.RemoveAll(tmpDir)
 
 	for n := 0; n < doc.NumPage(); n++ {
 		html, err := doc.HTML(n, true)
@@ -173,6 +178,32 @@ func TestHTML(t *testing.T) {
 	}
 }
 
+func TestPNG(t *testing.T) {
+	doc, err := fitz.New(filepath.Join("testdata", "test.pdf"))
+	if err != nil {
+		t.Error(err)
+	}
+	
+	defer doc.Close()
+
+	tmpDir, err := os.MkdirTemp(os.TempDir(), "fitz")
+	if err != nil {
+		t.Error(err)
+	}
+
+	defer os.RemoveAll(tmpDir)
+
+	for n := 0; n < doc.NumPage(); n++ {
+		png, err := doc.ImagePNG(n, 300.0)
+		if err != nil {
+			t.Error(err)
+		}
+		if err = os.WriteFile(filepath.Join(tmpDir, fmt.Sprintf("test%03d.png", n)), png, 0644); err != nil {
+			t.Error(err)
+		}
+	}
+}
+
 func TestSVG(t *testing.T) {
 	doc, err := fitz.New(filepath.Join("testdata", "test.pdf"))
 	if err != nil {
@@ -181,10 +212,12 @@ func TestSVG(t *testing.T) {
 
 	defer doc.Close()
 
-	tmpDir, err := ioutil.TempDir(os.TempDir(), "fitz")
+	tmpDir, err := os.MkdirTemp(os.TempDir(), "fitz")
 	if err != nil {
 		t.Error(err)
 	}
+
+	defer os.RemoveAll(tmpDir)
 
 	for n := 0; n < doc.NumPage(); n++ {
 		svg, err := doc.SVG(n)
