@@ -59,6 +59,9 @@ var (
 	ErrLoadOutline   = errors.New("fitz: cannot load outline")
 )
 
+// Maximum size in bytes of the resource store, before it will start evicting cached resources such as fonts and images.
+var MaxStore = 256 << 20
+
 // Document represents fitz document.
 type Document struct {
 	ctx    *C.struct_fz_context
@@ -101,7 +104,7 @@ func New(filename string) (f *Document, err error) {
 		return
 	}
 
-	f.ctx = (*C.struct_fz_context)(unsafe.Pointer(C.fz_new_context_imp(nil, nil, C.FZ_STORE_UNLIMITED, C.fz_version)))
+	f.ctx = (*C.struct_fz_context)(unsafe.Pointer(C.fz_new_context_imp(nil, nil, C.ulong(MaxStore), C.fz_version)))
 	if f.ctx == nil {
 		err = ErrCreateContext
 		return
@@ -131,7 +134,7 @@ func New(filename string) (f *Document, err error) {
 func NewFromMemory(b []byte) (f *Document, err error) {
 	f = &Document{}
 
-	f.ctx = (*C.struct_fz_context)(unsafe.Pointer(C.fz_new_context_imp(nil, nil, C.FZ_STORE_UNLIMITED, C.fz_version)))
+	f.ctx = (*C.struct_fz_context)(unsafe.Pointer(C.fz_new_context_imp(nil, nil, C.ulong(MaxStore), C.fz_version)))
 	if f.ctx == nil {
 		err = ErrCreateContext
 		return
