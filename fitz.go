@@ -8,9 +8,9 @@ package fitz
 
 const char *fz_version = FZ_VERSION;
 #if defined(_WIN32)
-	typedef ulonglong store;
+	typedef unsigned long long store;
 #else
-	typedef ulong store;
+	typedef unsigned long store;
 #endif
 
 fz_document *open_document(fz_context *ctx, const char *filename) {
