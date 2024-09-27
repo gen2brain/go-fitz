@@ -1,5 +1,5 @@
 // Package fitz provides wrapper for the [MuPDF](http://mupdf.com/) fitz library
-// that can extract pages from PDF and EPUB documents as images, text, html or svg.
+// that can extract pages from PDF, EPUB and MOBI documents as images, text, html or svg.
 package fitz
 
 /*
@@ -64,7 +64,7 @@ var (
 	ErrLoadOutline   = errors.New("fitz: cannot load outline")
 )
 
-// Maximum size in bytes of the resource store, before it will start evicting cached resources such as fonts and images.
+// MaxStore is maximum size in bytes of the resource store, before it will start evicting cached resources such as fonts and images.
 var MaxStore = 256 << 20
 
 // Document represents fitz document.
@@ -233,7 +233,7 @@ func (f *Document) ImageDPI(pageNumber int, dpi float64) (image.Image, error) {
 	}
 
 	C.fz_clear_pixmap_with_value(f.ctx, pixmap, C.int(0xff))
-	//defer C.fz_drop_pixmap(f.ctx, pixmap)
+	defer C.fz_drop_pixmap(f.ctx, pixmap)
 
 	device := C.fz_new_draw_device(f.ctx, ctm, pixmap)
 	C.fz_enable_device_hints(f.ctx, device, C.FZ_NO_CACHE)
@@ -248,7 +248,6 @@ func (f *Document) ImageDPI(pageNumber int, dpi float64) (image.Image, error) {
 	if pixels == nil {
 		return nil, ErrPixmapSamples
 	}
-	defer C.free(unsafe.Pointer(pixels))
 
 	img.Pix = C.GoBytes(unsafe.Pointer(pixels), C.int(4*bbox.x1*bbox.y1))
 	img.Rect = image.Rect(int(bbox.x0), int(bbox.y0), int(bbox.x1), int(bbox.y1))
