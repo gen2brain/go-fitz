@@ -3,6 +3,7 @@
 package fitz
 
 /*
-#cgo pkg-config: mupdf
+#cgo !static pkg-config: mupdf
+#cgo static pkg-config: --static mupdf
 */
 import "C"
