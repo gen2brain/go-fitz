@@ -199,8 +199,8 @@ fz_image *fz_new_image_of_size(fz_context *ctx,
 		int yres,
 		int interpolate,
 		int imagemask,
-		float *decode,
-		int *colorkey,
+		const float *decode,
+		const int *colorkey,
 		fz_image *mask,
 		size_t size,
 		fz_image_get_pixmap_fn *get_pixmap,
@@ -243,7 +243,7 @@ fz_image *fz_new_image_of_size(fz_context *ctx,
 	A new reference is taken to this image. Supplying a masked
 	image as a mask to another image is illegal!
 */
-fz_image *fz_new_image_from_compressed_buffer(fz_context *ctx, int w, int h, int bpc, fz_colorspace *colorspace, int xres, int yres, int interpolate, int imagemask, float *decode, int *colorkey, fz_compressed_buffer *buffer, fz_image *mask);
+fz_image *fz_new_image_from_compressed_buffer(fz_context *ctx, int w, int h, int bpc, fz_colorspace *colorspace, int xres, int yres, int interpolate, int imagemask, const float *decode, const int *colorkey, fz_compressed_buffer *buffer, fz_image *mask);
 
 /**
 	Create an image from the given
@@ -314,6 +314,14 @@ fz_pixmap *fz_convert_separation_pixmap_to_base(fz_context *ctx, const fz_pixmap
 	Return the size of the storage used by an image.
 */
 size_t fz_image_size(fz_context *ctx, fz_image *im);
+
+/**
+	Return the type of a compressed image.
+
+	Any non-compressed image will have the type returned as UNKNOWN.
+*/
+int fz_compressed_image_type(fz_context *ctx, fz_image *image);
+
 
 /**
 	Structure is public to allow other structures to
@@ -412,6 +420,13 @@ void fz_set_pixmap_image_tile(fz_context *ctx, fz_pixmap_image *cimg, fz_pixmap 
 	Exposed for PDF.
 */
 fz_pixmap *fz_load_jpx(fz_context *ctx, const unsigned char *data, size_t size, fz_colorspace *cs);
+
+/**
+	Exposed because compression and decompression need to share this.
+*/
+void opj_lock(fz_context *ctx);
+void opj_unlock(fz_context *ctx);
+
 
 /**
 	Exposed for CBZ.

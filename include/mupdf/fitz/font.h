@@ -63,6 +63,44 @@ const char **fz_duplicate_glyph_names_from_unicode(int unicode);
 const char *fz_glyph_name_from_unicode_sc(int unicode);
 
 /**
+ * A text decoder (to read arbitrary encodings and convert to unicode).
+ */
+typedef struct fz_text_decoder fz_text_decoder;
+
+struct fz_text_decoder {
+	// get maximum size estimate of converted text (fast)
+	int (*decode_bound)(fz_text_decoder *dec, unsigned char *input, int n);
+
+	// get exact size of converted text (slow)
+	int (*decode_size)(fz_text_decoder *dec, unsigned char *input, int n);
+
+	// convert text into output buffer
+	void (*decode)(fz_text_decoder *dec, char *output, unsigned char *input, int n);
+
+	// for internal use only; do not touch!
+	void *table1;
+	void *table2;
+};
+
+/* Initialize a text decoder using an IANA encoding name.
+ * See source/fitz/text-decoder.c for the exact list of supported encodings.
+ * Will throw an exception if the requested encoding is not available.
+ *
+ * The following is a subset of the supported encodings (see source/fitz/text-decoder.c for the full list):
+ *   iso-8859-1
+ *   iso-8859-7
+ *   koi8-r
+ *   euc-jp
+ *   shift_jis
+ *   euc-kr
+ *   euc-cn
+ *   gb18030
+ *   euc-tw
+ *   big5
+ */
+void fz_init_text_decoder(fz_context *ctx, fz_text_decoder *dec, const char *encoding);
+
+/**
 	An abstract font handle.
 */
 typedef struct fz_font fz_font;
@@ -742,5 +780,36 @@ struct fz_font
 	/* Which font to use in a collection. */
 	int subfont;
 };
+
+void fz_ft_lock(fz_context *ctx);
+
+void fz_ft_unlock(fz_context *ctx);
+
+/* Internal function. Must be called with FT_ALLOC_LOCK
+ * held. Returns 1 if this thread (context!) already holds
+ * the freeetype lock. */
+int fz_ft_lock_held(fz_context *ctx);
+
+/* Internal function: Extract a ttf from the ttc that underlies
+ * a given fz_font. Caller takes ownership of the returned
+ * buffer.
+ */
+fz_buffer *fz_extract_ttf_from_ttc(fz_context *ctx, fz_font *font);
+
+/* Internal function: Given a ttf in a buffer, create a subset
+ * ttf in a new buffer that only provides the required gids.
+ * Caller takes ownership of the returned buffer.
+ *
+ * EXPERIMENTAL AND VERY SUBJECT TO CHANGE.
+ */
+fz_buffer *fz_subset_ttf_for_gids(fz_context *ctx, fz_buffer *orig, int *gids, int num_gids, int symbolic, int cidfont);
+
+/* Internal function: Given a cff in a buffer, create a subset
+ * cff in a new buffer that only provides the required gids.
+ * Caller takes ownership of the returned buffer.
+ *
+ * EXPERIMENTAL AND VERY SUBJECT TO CHANGE.
+ */
+fz_buffer *fz_subset_cff_for_gids(fz_context *ctx, fz_buffer *orig, int *gids, int num_gids, int symbolic, int cidfont);
 
 #endif

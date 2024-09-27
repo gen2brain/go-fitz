@@ -202,6 +202,26 @@ pdf_document *pdf_specifics(fz_context *ctx, fz_document *doc);
 pdf_document *pdf_document_from_fz_document(fz_context *ctx, fz_document *ptr);
 pdf_page *pdf_page_from_fz_page(fz_context *ctx, fz_page *ptr);
 
+/*
+	Get a pdf_document handle from an fz_document handle.
+
+	This is superfically similar to pdf_document_from_fz_document
+	(and the older pdf_specifics).
+
+	For fz_documents that are actually pdf_documents, this will return
+	a kept version of the same pointer, just cast differently.
+
+	For fz_documents that have a pdf_document representation internally,
+	then you may get a kept version of a different pointer.
+
+	For fz_documents that have no pdf_document representation internally,
+	this will return NULL.
+
+	Note that this returns a kept pointer that the caller is responsible
+	for freeing, unlike pdf_specifics or pdf_document_from_fz_document.
+*/
+pdf_document *fz_new_pdf_document_from_fz_document(fz_context *ctx, fz_document *ptr);
+
 int pdf_needs_password(fz_context *ctx, pdf_document *doc);
 
 /*
@@ -218,7 +238,7 @@ int pdf_needs_password(fz_context *ctx, pdf_document *doc);
 int pdf_authenticate_password(fz_context *ctx, pdf_document *doc, const char *pw);
 
 int pdf_has_permission(fz_context *ctx, pdf_document *doc, fz_permission p);
-int pdf_lookup_metadata(fz_context *ctx, pdf_document *doc, const char *key, char *ptr, int size);
+int pdf_lookup_metadata(fz_context *ctx, pdf_document *doc, const char *key, char *ptr, size_t size);
 
 fz_outline *pdf_load_outline(fz_context *ctx, pdf_document *doc);
 
@@ -403,6 +423,7 @@ struct pdf_document
 	fz_stream *file;
 
 	int version;
+	int is_fdf;
 	int64_t startxref;
 	int64_t file_size;
 	pdf_crypt *crypt;
@@ -715,6 +736,8 @@ typedef struct
 	char upwd_utf8[128]; /* User password. */
 	int do_snapshot; /* Do not use directly. Use the snapshot functions. */
 	int do_preserve_metadata; /* When cleaning, preserve metadata unchanged. */
+	int do_use_objstms; /* Use objstms if possible */
+	int compression_effort; /* 0 for default. 100 = max, 1 = min. */
 } pdf_write_options;
 
 FZ_DATA extern const pdf_write_options pdf_default_write_options;
@@ -803,6 +826,17 @@ void pdf_read_journal(fz_context *ctx, pdf_document *doc, fz_stream *stm);
 	of these objects will load them back into memory again.
 */
 void pdf_minimize_document(fz_context *ctx, pdf_document *doc);
+
+/*
+	Map a pdf object representing a structure tag through
+	an optional role_map and convert to an fz_structure.
+*/
+fz_structure pdf_structure_type(fz_context *ctx, pdf_obj *role_map, pdf_obj *tag);
+
+/*
+	Run the document structure to a device.
+*/
+void pdf_run_document_structure(fz_context *ctx, pdf_document *doc, fz_device *dev, fz_cookie *cookie);
 
 
 #endif

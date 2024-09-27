@@ -88,6 +88,9 @@ fz_archive *fz_open_directory(fz_context *ctx, const char *path);
 
 /**
 	Determine if a given path is a directory.
+
+	In the case of the path not existing, or having no access
+	we will return 0.
 */
 int fz_is_directory(fz_context *ctx, const char *path);
 
@@ -194,16 +197,30 @@ fz_buffer *fz_try_read_archive_entry(fz_context *ctx, fz_archive *arch, const ch
 */
 
 /**
-	Detect if stream object is a tar achieve.
+	Detect if stream object is a tar archive.
 
 	Assumes that the stream object is seekable.
 */
 int fz_is_tar_archive(fz_context *ctx, fz_stream *file);
 
 /**
+	Detect if stream object is an archive supported by libarchive.
+
+	Assumes that the stream object is seekable.
+*/
+int fz_is_libarchive_archive(fz_context *ctx, fz_stream *file);
+
+/**
+	Detect if stream object is a cfb archive.
+
+	Assumes that the stream object is seekable.
+*/
+int fz_is_cfb_archive(fz_context *ctx, fz_stream *file);
+
+/**
 	Open a tar archive file.
 
-	An exception is throw if the file is not a tar archive as
+	An exception is thrown if the file is not a tar archive as
 	indicated by the presence of a tar signature.
 
 	filename: a path to a tar archive file as it would be given to
@@ -217,11 +234,51 @@ fz_archive *fz_open_tar_archive(fz_context *ctx, const char *filename);
 	Open an archive using a seekable stream object rather than
 	opening a file or directory on disk.
 
-	An exception is throw if the stream is not a tar archive as
+	An exception is thrown if the stream is not a tar archive as
 	indicated by the presence of a tar signature.
 
 */
 fz_archive *fz_open_tar_archive_with_stream(fz_context *ctx, fz_stream *file);
+
+/**
+	Open an archive using libarchive.
+
+	An exception is thrown if the file is not supported by libarchive.
+
+	filename: a path to an archive file as it would be given to
+	open(2).
+*/
+fz_archive *fz_open_libarchive_archive(fz_context *ctx, const char *filename);
+
+/**
+	Open an archive using libarchive.
+
+	Open an archive using a seekable stream object rather than
+	opening a file or directory on disk.
+
+	An exception is thrown if the stream is not supported by libarchive.
+*/
+fz_archive *fz_open_libarchive_archive_with_stream(fz_context *ctx, fz_stream *file);
+
+/**
+	Open a cfb file as an archive.
+
+	An exception is thrown if the file is not recognised as a cfb.
+
+	filename: a path to an archive file as it would be given to
+	open(2).
+*/
+fz_archive *fz_open_cfb_archive(fz_context *ctx, const char *filename);
+
+/**
+	Open a cfb file as an archive.
+
+	Open an archive using a seekable stream object rather than
+	opening a file or directory on disk.
+
+	An exception is thrown if the file is not recognised as a chm.
+*/
+fz_archive *fz_open_cfb_archive_with_stream(fz_context *ctx, fz_stream *file);
 
 /**
 	fz_archive: zip implementation
@@ -237,7 +294,7 @@ int fz_is_zip_archive(fz_context *ctx, fz_stream *file);
 /**
 	Open a zip archive file.
 
-	An exception is throw if the file is not a zip archive as
+	An exception is thrown if the file is not a zip archive as
 	indicated by the presence of a zip signature.
 
 	filename: a path to a zip archive file as it would be given to
@@ -251,7 +308,7 @@ fz_archive *fz_open_zip_archive(fz_context *ctx, const char *path);
 	Open an archive using a seekable stream object rather than
 	opening a file or directory on disk.
 
-	An exception is throw if the stream is not a zip archive as
+	An exception is thrown if the stream is not a zip archive as
 	indicated by the presence of a zip signature.
 
 */
@@ -344,6 +401,20 @@ fz_archive *fz_new_multi_archive(fz_context *ctx);
 */
 void fz_mount_multi_archive(fz_context *ctx, fz_archive *arch_, fz_archive *sub, const char *path);
 
+typedef int (fz_recognize_archive_fn)(fz_context *, fz_stream *);
+typedef fz_archive *(fz_open_archive_fn)(fz_context *, fz_stream *);
+
+typedef struct
+{
+	fz_recognize_archive_fn *recognize;
+	fz_open_archive_fn *open;
+}
+fz_archive_handler;
+
+FZ_DATA extern const fz_archive_handler fz_libarchive_archive_handler;
+
+void fz_register_archive_handler(fz_context *ctx, const fz_archive_handler *handler);
+
 /**
 	Implementation details: Subject to change.
 */
@@ -351,8 +422,8 @@ void fz_mount_multi_archive(fz_context *ctx, fz_archive *arch_, fz_archive *sub,
 struct fz_archive
 {
 	int refs;
-
 	fz_stream *file;
+
 	const char *format;
 
 	void (*drop_archive)(fz_context *ctx, fz_archive *arch);

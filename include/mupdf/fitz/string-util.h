@@ -158,6 +158,14 @@ void fz_format_output_path(fz_context *ctx, char *path, size_t size, const char 
 char *fz_cleanname(char *name);
 
 /**
+	rewrite path to the shortest string that names the same path.
+
+	Eliminates multiple and trailing slashes, interprets "." and
+	"..". Allocates a new string that the caller must free.
+*/
+char *fz_cleanname_strdup(fz_context *ctx, const char *name);
+
+/**
 	Resolve a path to an absolute file name.
 	The resolved path buffer must be of at least PATH_MAX size.
 */
@@ -240,6 +248,17 @@ const char *fz_runeptr(const char *str, int idx);
 	Returns the number of runes in the string.
 */
 int fz_utflen(const char *s);
+
+/*
+	Convert a wchar string into a new heap allocated utf8 one.
+*/
+char *fz_utf8_from_wchar(fz_context *ctx, const wchar_t *s);
+
+/*
+	Convert a utf8 string into a new heap allocated wchar one.
+*/
+wchar_t *fz_wchar_from_utf8(fz_context *ctx, const char *path);
+
 
 /**
 	Locale-independent decimal to binary conversion. On overflow

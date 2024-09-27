@@ -57,7 +57,7 @@ fz_xml *fz_parse_xml_stream(fz_context *ctx, fz_stream *stream, int preserve_whi
 
 	preserve_white: whether to keep or delete all-whitespace nodes.
 */
-fz_xml *fz_parse_xml_archive_entry(fz_context *ctx, fz_archive *arch, const char *filename, int preserve_white);
+fz_xml *fz_parse_xml_archive_entry(fz_context *ctx, fz_archive *dir, const char *filename, int preserve_white);
 
 /**
 	Try and parse the contents of an archive entry into a tree of xml nodes.
@@ -67,7 +67,7 @@ fz_xml *fz_parse_xml_archive_entry(fz_context *ctx, fz_archive *arch, const char
 	Will return NULL if the archive entry can't be found. Otherwise behaves
 	the same as fz_parse_xml_archive_entry. May throw exceptions.
 */
-fz_xml *fz_try_parse_xml_archive_entry(fz_context *ctx, fz_archive *arch, const char *filename, int preserve_white);
+fz_xml *fz_try_parse_xml_archive_entry(fz_context *ctx, fz_archive *dir, const char *filename, int preserve_white);
 
 /**
 	Parse the contents of a buffer into a tree of XML nodes,
@@ -161,7 +161,13 @@ void fz_xml_add_att(fz_context *ctx, fz_pool *pool, fz_xml *node, const char *ke
 char *fz_xml_text(fz_xml *item);
 
 /**
-	Pretty-print an XML tree to stdout.
+	Pretty-print an XML tree to given output.
+*/
+void fz_output_xml(fz_context *ctx, fz_output *out, fz_xml *item, int level);
+
+/**
+	Pretty-print an XML tree to stdout. (Deprecated, use
+	fz_output_xml in preference).
 */
 void fz_debug_xml(fz_xml *item, int level);
 

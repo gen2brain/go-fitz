@@ -127,6 +127,7 @@ typedef struct
 
 int pdf_mark_list_push(fz_context *ctx, pdf_mark_list *list, pdf_obj *obj);
 void pdf_mark_list_pop(fz_context *ctx, pdf_mark_list *list);
+int pdf_mark_list_check(fz_context *ctx, pdf_mark_list *list, pdf_obj *obj);
 void pdf_mark_list_init(fz_context *ctx, pdf_mark_list *list);
 void pdf_mark_list_free(fz_context *ctx, pdf_mark_list *list);
 
@@ -148,6 +149,10 @@ char *pdf_to_str_buf(fz_context *ctx, pdf_obj *obj);
 size_t pdf_to_str_len(fz_context *ctx, pdf_obj *obj);
 int pdf_to_num(fz_context *ctx, pdf_obj *obj);
 int pdf_to_gen(fz_context *ctx, pdf_obj *obj);
+
+int pdf_to_bool_default(fz_context *ctx, pdf_obj *obj, int def);
+int pdf_to_int_default(fz_context *ctx, pdf_obj *obj, int def);
+float pdf_to_real_default(fz_context *ctx, pdf_obj *obj, float def);
 
 int pdf_array_len(fz_context *ctx, pdf_obj *array);
 pdf_obj *pdf_array_get(fz_context *ctx, pdf_obj *array, int i);
@@ -211,6 +216,21 @@ fz_rect pdf_dict_get_rect(fz_context *ctx, pdf_obj *dict, pdf_obj *key);
 fz_matrix pdf_dict_get_matrix(fz_context *ctx, pdf_obj *dict, pdf_obj *key);
 int64_t pdf_dict_get_date(fz_context *ctx, pdf_obj *dict, pdf_obj *key);
 
+int pdf_dict_get_bool_default(fz_context *ctx, pdf_obj *dict, pdf_obj *key, int def);
+int pdf_dict_get_int_default(fz_context *ctx, pdf_obj *dict, pdf_obj *key, int def);
+float pdf_dict_get_real_default(fz_context *ctx, pdf_obj *dict, pdf_obj *key, float def);
+
+int pdf_dict_get_inheritable_bool(fz_context *ctx, pdf_obj *dict, pdf_obj *key);
+int pdf_dict_get_inheritable_int(fz_context *ctx, pdf_obj *dict, pdf_obj *key);
+int64_t pdf_dict_get_inheritable_int64(fz_context *ctx, pdf_obj *dict, pdf_obj *key);
+float pdf_dict_get_inheritable_real(fz_context *ctx, pdf_obj *dict, pdf_obj *key);
+const char *pdf_dict_get_inheritable_name(fz_context *ctx, pdf_obj *dict, pdf_obj *key);
+const char *pdf_dict_get_inheritable_string(fz_context *ctx, pdf_obj *dict, pdf_obj *key, size_t *sizep);
+const char *pdf_dict_get_inheritable_text_string(fz_context *ctx, pdf_obj *dict, pdf_obj *key);
+fz_rect pdf_dict_get_inheritable_rect(fz_context *ctx, pdf_obj *dict, pdf_obj *key);
+fz_matrix pdf_dict_get_inheritable_matrix(fz_context *ctx, pdf_obj *dict, pdf_obj *key);
+int64_t pdf_dict_get_inheritable_date(fz_context *ctx, pdf_obj *dict, pdf_obj *key);
+
 void pdf_array_push_bool(fz_context *ctx, pdf_obj *array, int x);
 void pdf_array_push_int(fz_context *ctx, pdf_obj *array, int64_t x);
 void pdf_array_push_real(fz_context *ctx, pdf_obj *array, double x);
@@ -219,6 +239,15 @@ void pdf_array_push_string(fz_context *ctx, pdf_obj *array, const char *x, size_
 void pdf_array_push_text_string(fz_context *ctx, pdf_obj *array, const char *x);
 pdf_obj *pdf_array_push_array(fz_context *ctx, pdf_obj *array, int initial);
 pdf_obj *pdf_array_push_dict(fz_context *ctx, pdf_obj *array, int initial);
+
+void pdf_array_put_bool(fz_context *ctx, pdf_obj *array, int i, int x);
+void pdf_array_put_int(fz_context *ctx, pdf_obj *array, int i, int64_t x);
+void pdf_array_put_real(fz_context *ctx, pdf_obj *array, int i, double x);
+void pdf_array_put_name(fz_context *ctx, pdf_obj *array, int i, const char *x);
+void pdf_array_put_string(fz_context *ctx, pdf_obj *array, int i, const char *x, size_t n);
+void pdf_array_put_text_string(fz_context *ctx, pdf_obj *array, int i, const char *x);
+pdf_obj *pdf_array_put_array(fz_context *ctx, pdf_obj *array, int i, int initial);
+pdf_obj *pdf_array_put_dict(fz_context *ctx, pdf_obj *array, int i, int initial);
 
 int pdf_array_get_bool(fz_context *ctx, pdf_obj *array, int index);
 int pdf_array_get_int(fz_context *ctx, pdf_obj *array, int index);
@@ -237,7 +266,7 @@ int pdf_obj_parent_num(fz_context *ctx, pdf_obj *obj);
 
 char *pdf_sprint_obj(fz_context *ctx, char *buf, size_t cap, size_t *len, pdf_obj *obj, int tight, int ascii);
 void pdf_print_obj(fz_context *ctx, fz_output *out, pdf_obj *obj, int tight, int ascii);
-void pdf_print_encrypted_obj(fz_context *ctx, fz_output *out, pdf_obj *obj, int tight, int ascii, pdf_crypt *crypt, int num, int gen);
+void pdf_print_encrypted_obj(fz_context *ctx, fz_output *out, pdf_obj *obj, int tight, int ascii, pdf_crypt *crypt, int num, int gen, int *sep);
 
 void pdf_debug_obj(fz_context *ctx, pdf_obj *obj);
 void pdf_debug_ref(fz_context *ctx, pdf_obj *obj);

@@ -216,7 +216,7 @@ typedef int (fz_document_lookup_metadata_fn)(fz_context *ctx, fz_document *doc, 
 	a document's metadata. See fz_set_metadata for more
 	information.
 */
-typedef int (fz_document_set_metadata_fn)(fz_context *ctx, fz_document *doc, const char *key, const char *value);
+typedef void (fz_document_set_metadata_fn)(fz_context *ctx, fz_document *doc, const char *key, const char *value);
 
 /**
 	Return output intent color space if it exists
@@ -227,6 +227,18 @@ typedef fz_colorspace *(fz_document_output_intent_fn)(fz_context *ctx, fz_docume
 	Write document accelerator data
 */
 typedef void (fz_document_output_accelerator_fn)(fz_context *ctx, fz_document *doc, fz_output *out);
+
+/**
+	Send document structure to device
+*/
+typedef void (fz_document_run_structure_fn)(fz_context *ctx, fz_document *doc, fz_device *dev, fz_cookie *cookie);
+
+/**
+	Get a handle to this document as PDF.
+
+	Returns a borrowed handle.
+*/
+typedef fz_document *(fz_document_as_pdf_fn)(fz_context *ctx, fz_document *doc);
 
 /**
 	Type for a function to make
@@ -314,54 +326,34 @@ typedef fz_link *(fz_page_create_link_fn)(fz_context *ctx, fz_page *page, fz_rec
 typedef void (fz_page_delete_link_fn)(fz_context *ctx, fz_page *page, fz_link *link);
 
 /**
-	Function type to open a document from a file.
-
-	filename: file to open
-
-	Pointer to opened document. Throws exception in case of error.
-*/
-typedef fz_document *(fz_document_open_fn)(fz_context *ctx, const char *filename);
-
-/**
 	Function type to open a
 	document from a file.
 
-	stream: fz_stream to read document data from. Must be
-	seekable for formats that require it.
-
-	Pointer to opened document. Throws exception in case of error.
-*/
-typedef fz_document *(fz_document_open_with_stream_fn)(fz_context *ctx, fz_stream *stream);
-
-/**
-	Function type to open a document from a
-	file, with accelerator data.
-
-	filename: file to open
-
-	accel: accelerator file
-
-	Pointer to opened document. Throws exception in case of error.
-*/
-typedef fz_document *(fz_document_open_accel_fn)(fz_context *ctx, const char *filename, const char *accel);
-
-/**
-	Function type to open a document from a file,
-	with accelerator data.
+	handler: the document handler in use.
 
 	stream: fz_stream to read document data from. Must be
 	seekable for formats that require it.
 
-	accel: fz_stream to read accelerator data from. Must be
-	seekable for formats that require it.
+	accel: fz_stream to read accelerator data from. May be
+	NULL. May be ignored.
+
+	dir: 'Directory context' in which the document is loaded;
+	associated content from (like images for an html stream
+	will be loaded from this). Maybe NULL. May be ignored.
+
+	recognize_state: NULL, or a state pointer passed back from the call
+	to recognise_content_fn. Ownership does not pass in. The
+	caller remains responsible for freeing state.
 
 	Pointer to opened document. Throws exception in case of error.
 */
-typedef fz_document *(fz_document_open_accel_with_stream_fn)(fz_context *ctx, fz_stream *stream, fz_stream *accel);
+typedef fz_document *(fz_document_open_fn)(fz_context *ctx, const fz_document_handler *handler, fz_stream *stream, fz_stream *accel, fz_archive *dir, void *recognize_state);
 
 /**
 	Recognize a document type from
 	a magic string.
+
+	handler: the handler in use.
 
 	magic: string to recognise - typically a filename or mime
 	type.
@@ -370,18 +362,46 @@ typedef fz_document *(fz_document_open_accel_with_stream_fn)(fz_context *ctx, fz
 	(fully recognized) based on how certain the recognizer
 	is that this is of the required type.
 */
-typedef int (fz_document_recognize_fn)(fz_context *ctx, const char *magic);
+typedef int (fz_document_recognize_fn)(fz_context *ctx, const fz_document_handler *handler, const char *magic);
+
+typedef void (fz_document_recognize_state_free_fn)(fz_context *ctx, void *state);
 
 /**
 	Recognize a document type from stream contents.
 
-	stream: stream contents to recognise.
+	handler: the handler in use.
+
+	stream: stream contents to recognise (may be NULL if document is
+	a directory).
+
+	dir: directory context from which stream is loaded.
+
+	recognize_state: pointer to retrieve opaque state that may be used
+	by the open routine, or NULL.
+
+	free_recognize_state: pointer to retrieve a function pointer to
+	free the opaque state, or NULL.
+
+	Note: state and free_state should either both be NULL or
+	both be non-NULL!
 
 	Returns a number between 0 (not recognized) and 100
 	(fully recognized) based on how certain the recognizer
 	is that this is of the required type.
 */
-typedef int (fz_document_recognize_content_fn)(fz_context *ctx, fz_stream *stream);
+typedef int (fz_document_recognize_content_fn)(fz_context *ctx, const fz_document_handler *handler, fz_stream *stream, fz_archive *dir, void **recognize_state, fz_document_recognize_state_free_fn **free_recognize_state);
+
+/**
+	Finalise a document handler.
+
+	This will be called on shutdown for a document handler to
+	release resources. This should cope with being called with NULL.
+
+	opaque: The value previously returned by the init call.
+*/
+typedef void fz_document_handler_fin_fn(fz_context *ctx, const fz_document_handler *handler);
+
+
 
 /**
 	Type for a function to be called when processing an already opened page.
@@ -392,13 +412,14 @@ typedef void *(fz_process_opened_page_fn)(fz_context *ctx, fz_page *page, void *
 /**
 	Register a handler for a document type.
 
-	handler: The handler to register.
+	handler: The handler to register. This must live on for the duration of the
+	use of this handler. It will be passed back to the handler for calls so
+	the caller can use it to retrieve state.
 */
 void fz_register_document_handler(fz_context *ctx, const fz_document_handler *handler);
 
 /**
-	Register handlers
-	for all the standard document types supported in
+	Register handlers for all the standard document types supported in
 	this build.
 */
 void fz_register_document_handlers(fz_context *ctx);
@@ -425,12 +446,28 @@ const fz_document_handler *fz_recognize_document_content(fz_context *ctx, const 
 	Given a magic find a document handler that can handle a
 	document of this type.
 
-	stream: the file stream to sample.
+	stream: the file stream to sample. May be NULL if the document is
+	a directory.
 
 	magic: Can be a filename extension (including initial period) or
 	a mimetype.
 */
 const fz_document_handler *fz_recognize_document_stream_content(fz_context *ctx, fz_stream *stream, const char *magic);
+
+/**
+	Given a magic find a document handler that can handle a
+	document of this type.
+
+	stream: the file stream to sample. May be NULL if the document is
+	a directory.
+
+	dir: an fz_archive representing the directory from which the
+	stream was opened (or NULL).
+
+	magic: Can be a filename extension (including initial period) or
+	a mimetype.
+*/
+const fz_document_handler *fz_recognize_document_stream_and_dir_content(fz_context *ctx, fz_stream *stream, fz_archive *dir, const char *magic);
 
 /**
 	Open a document file and read its basic structure so pages and
@@ -462,8 +499,29 @@ fz_document *fz_open_accelerated_document(fz_context *ctx, const char *filename,
 
 	magic: a string used to detect document type; either a file name
 	or mime-type.
+
+	stream: a stream representing the contents of the document file.
+
+	NOTE: The caller retains ownership of 'stream' - the document will take its
+	own reference if required.
 */
 fz_document *fz_open_document_with_stream(fz_context *ctx, const char *magic, fz_stream *stream);
+
+/**
+	Open a document using the specified stream object rather than
+	opening a file on disk.
+
+	magic: a string used to detect document type; either a file name
+	or mime-type.
+
+	stream: a stream representing the contents of the document file.
+
+	dir: a 'directory context' for those filetypes that need it.
+
+	NOTE: The caller retains ownership of 'stream' and 'dir' - the document will
+	take its own references if required.
+*/
+fz_document *fz_open_document_with_stream_and_dir(fz_context *ctx, const char *magic, fz_stream *stream, fz_archive *dir);
 
 /**
 	Open a document using a buffer rather than opening a file on disk.
@@ -476,8 +534,33 @@ fz_document *fz_open_document_with_buffer(fz_context *ctx, const char *magic, fz
 
 	magic: a string used to detect document type; either a file name
 	or mime-type.
+
+	stream: a stream of the document contents.
+
+	accel: NULL, or a stream of the 'accelerator' contents for this document.
+
+	NOTE: The caller retains ownership of 'stream' and 'accel' - the document will
+	take its own references if required.
 */
 fz_document *fz_open_accelerated_document_with_stream(fz_context *ctx, const char *magic, fz_stream *stream, fz_stream *accel);
+
+/**
+	Open a document using the specified stream object rather than
+	opening a file on disk.
+
+	magic: a string used to detect document type; either a file name
+	or mime-type.
+
+	stream: a stream of the document contents.
+
+	accel: NULL, or a stream of the 'accelerator' contents for this document.
+
+	dir: NULL, or the 'directory context' for the stream contents.
+
+	NOTE: The caller retains ownership of 'stream', 'accel' and 'dir' - the document will
+	take its own references if required.
+*/
+fz_document *fz_open_accelerated_document_with_stream_and_dir(fz_context *ctx, const char *magic, fz_stream *stream, fz_stream *accel, fz_archive *dir);
 
 /**
 	Query if the document supports the saving of accelerator data.
@@ -618,6 +701,23 @@ char *fz_format_link_uri(fz_context *ctx, fz_document *doc, fz_link_dest dest);
 	Returns (-1,-1) if the URI cannot be resolved.
 */
 fz_location fz_resolve_link(fz_context *ctx, fz_document *doc, const char *uri, float *xp, float *yp);
+
+/**
+	Run the document structure through a device.
+
+	doc: Document in question.
+
+	dev: Device obtained from fz_new_*_device.
+
+	cookie: Communication mechanism between caller and library.
+	Intended for multi-threaded applications, while
+	single-threaded applications set cookie to NULL. The
+	caller may abort an ongoing rendering of a page. Cookie also
+	communicates progress information back to the caller. The
+	fields inside cookie are continually updated while the page is
+	rendering.
+*/
+void fz_run_document_structure(fz_context *ctx, fz_document *doc, fz_device *dev, fz_cookie *cookie);
 
 /**
 	Function to get the location for the last page in the document.
@@ -977,6 +1077,8 @@ struct fz_document
 	fz_document_set_metadata_fn *set_metadata;
 	fz_document_output_intent_fn *get_output_intent;
 	fz_document_output_accelerator_fn *output_accelerator;
+	fz_document_run_structure_fn *run_structure;
+	fz_document_as_pdf_fn *as_pdf;
 	int did_layout;
 	int is_reflowable;
 
@@ -992,14 +1094,15 @@ struct fz_document
 
 struct fz_document_handler
 {
+	/* These fields are initialised by the handler when it is registered. */
 	fz_document_recognize_fn *recognize;
 	fz_document_open_fn *open;
-	fz_document_open_with_stream_fn *open_with_stream;
 	const char **extensions;
 	const char **mimetypes;
-	fz_document_open_accel_fn *open_accel;
-	fz_document_open_accel_with_stream_fn *open_accel_with_stream;
 	fz_document_recognize_content_fn *recognize_content;
+	int wants_dir;
+	int wants_file;
+	fz_document_handler_fin_fn *fin;
 };
 
 #endif

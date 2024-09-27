@@ -226,6 +226,11 @@ void fz_save_pixmap_as_pdfocr(fz_context *ctx, fz_pixmap *pixmap, char *filename
 void fz_save_pixmap_as_png(fz_context *ctx, fz_pixmap *pixmap, const char *filename);
 
 /**
+	Write a pixmap as a JPEG.
+*/
+void fz_write_pixmap_as_jpeg(fz_context *ctx, fz_output *out, fz_pixmap *pix, int quality, int invert_cmyk);
+
+/**
 	Save a pixmap as a JPEG.
 */
 void fz_save_pixmap_as_jpeg(fz_context *ctx, fz_pixmap *pixmap, const char *filename, int quality);
@@ -234,6 +239,22 @@ void fz_save_pixmap_as_jpeg(fz_context *ctx, fz_pixmap *pixmap, const char *file
 	Write a (Greyscale or RGB) pixmap as a png.
 */
 void fz_write_pixmap_as_png(fz_context *ctx, fz_output *out, const fz_pixmap *pixmap);
+
+/**
+	Pixmap data as JP2K with no subsampling.
+
+	quality = 100 = lossless
+	otherwise for a factor of x compression use 100-x. (so 80 is 1:20 compression)
+*/
+void fz_write_pixmap_as_jpx(fz_context *ctx, fz_output *out, fz_pixmap *pix, int quality);
+
+/**
+	Save pixmap data as JP2K with no subsampling.
+
+	quality = 100 = lossless
+	otherwise for a factor of x compression use 100-x. (so 80 is 1:20 compression)
+*/
+void fz_save_pixmap_as_jpx(fz_context *ctx, fz_pixmap *pixmap, const char *filename, int q);
 
 /**
 	Create a new png band writer (greyscale or RGB, with or without
@@ -250,7 +271,8 @@ fz_buffer *fz_new_buffer_from_image_as_png(fz_context *ctx, fz_image *image, fz_
 fz_buffer *fz_new_buffer_from_image_as_pnm(fz_context *ctx, fz_image *image, fz_color_params color_params);
 fz_buffer *fz_new_buffer_from_image_as_pam(fz_context *ctx, fz_image *image, fz_color_params color_params);
 fz_buffer *fz_new_buffer_from_image_as_psd(fz_context *ctx, fz_image *image, fz_color_params color_params);
-fz_buffer *fz_new_buffer_from_image_as_jpeg(fz_context *ctx, fz_image *image, fz_color_params color_params, int quality);
+fz_buffer *fz_new_buffer_from_image_as_jpeg(fz_context *ctx, fz_image *image, fz_color_params color_params, int quality, int invert_cmyk);
+fz_buffer *fz_new_buffer_from_image_as_jpx(fz_context *ctx, fz_image *image, fz_color_params color_params, int quality);
 
 /**
 	Reencode a given pixmap as a PNG into a buffer.
@@ -261,7 +283,8 @@ fz_buffer *fz_new_buffer_from_pixmap_as_png(fz_context *ctx, fz_pixmap *pixmap, 
 fz_buffer *fz_new_buffer_from_pixmap_as_pnm(fz_context *ctx, fz_pixmap *pixmap, fz_color_params color_params);
 fz_buffer *fz_new_buffer_from_pixmap_as_pam(fz_context *ctx, fz_pixmap *pixmap, fz_color_params color_params);
 fz_buffer *fz_new_buffer_from_pixmap_as_psd(fz_context *ctx, fz_pixmap *pix, fz_color_params color_params);
-fz_buffer *fz_new_buffer_from_pixmap_as_jpeg(fz_context *ctx, fz_pixmap *pixmap, fz_color_params color_params, int quality);
+fz_buffer *fz_new_buffer_from_pixmap_as_jpeg(fz_context *ctx, fz_pixmap *pixmap, fz_color_params color_params, int quality, int invert_cmyk);
+fz_buffer *fz_new_buffer_from_pixmap_as_jpx(fz_context *ctx, fz_pixmap *pix, fz_color_params color_params, int quality);
 
 /**
 	Save a pixmap as a pnm (greyscale or rgb, no alpha).
