@@ -38,6 +38,30 @@ fz_document *open_document_with_stream(fz_context *ctx, const char *magic, fz_st
 
 	return doc;
 }
+
+fz_page *load_page(fz_context *ctx, fz_document *doc, int number) {
+	fz_page *page;
+
+	fz_try(ctx) {
+		page = fz_load_page(ctx, doc, number);
+	}
+	fz_catch(ctx) {
+		return NULL;
+	}
+
+	return page;
+}
+
+int run_page_contents(fz_context *ctx, fz_page *page, fz_device *dev, fz_matrix transform, fz_cookie *cookie) {
+	fz_try(ctx) {
+		fz_run_page_contents(ctx, page, dev, transform, cookie);
+	}
+	fz_catch(ctx) {
+		return 0;
+	}
+
+	return 1;
+}
 */
 import "C"
 
@@ -53,15 +77,17 @@ import (
 
 // Errors.
 var (
-	ErrNoSuchFile    = errors.New("fitz: no such file")
-	ErrCreateContext = errors.New("fitz: cannot create context")
-	ErrOpenDocument  = errors.New("fitz: cannot open document")
-	ErrOpenMemory    = errors.New("fitz: cannot open memory")
-	ErrPageMissing   = errors.New("fitz: page missing")
-	ErrCreatePixmap  = errors.New("fitz: cannot create pixmap")
-	ErrPixmapSamples = errors.New("fitz: cannot get pixmap samples")
-	ErrNeedsPassword = errors.New("fitz: document needs password")
-	ErrLoadOutline   = errors.New("fitz: cannot load outline")
+	ErrNoSuchFile      = errors.New("fitz: no such file")
+	ErrCreateContext   = errors.New("fitz: cannot create context")
+	ErrOpenDocument    = errors.New("fitz: cannot open document")
+	ErrOpenMemory      = errors.New("fitz: cannot open memory")
+	ErrLoadPage        = errors.New("fitz: cannot load page")
+	ErrRunPageContents = errors.New("fitz: cannot run page contents")
+	ErrPageMissing     = errors.New("fitz: page missing")
+	ErrCreatePixmap    = errors.New("fitz: cannot create pixmap")
+	ErrPixmapSamples   = errors.New("fitz: cannot get pixmap samples")
+	ErrNeedsPassword   = errors.New("fitz: document needs password")
+	ErrLoadOutline     = errors.New("fitz: cannot load outline")
 )
 
 // MaxStore is maximum size in bytes of the resource store, before it will start evicting cached resources such as fonts and images.
@@ -212,7 +238,11 @@ func (f *Document) ImageDPI(pageNumber int, dpi float64) (*image.RGBA, error) {
 		return nil, ErrPageMissing
 	}
 
-	page := C.fz_load_page(f.ctx, f.doc, C.int(pageNumber))
+	page := C.load_page(f.ctx, f.doc, C.int(pageNumber))
+	if page == nil {
+		return nil, ErrLoadPage
+	}
+
 	defer C.fz_drop_page(f.ctx, page)
 
 	var bounds C.fz_rect
@@ -238,7 +268,10 @@ func (f *Document) ImageDPI(pageNumber int, dpi float64) (*image.RGBA, error) {
 	defer C.fz_drop_device(f.ctx, device)
 
 	drawMatrix := C.fz_identity
-	C.fz_run_page_contents(f.ctx, page, device, drawMatrix, nil)
+	ret := C.run_page_contents(f.ctx, page, device, drawMatrix, nil)
+	if ret == 0 {
+		return nil, ErrRunPageContents
+	}
 
 	C.fz_close_device(f.ctx, device)
 
@@ -264,7 +297,11 @@ func (f *Document) ImagePNG(pageNumber int, dpi float64) ([]byte, error) {
 		return nil, ErrPageMissing
 	}
 
-	page := C.fz_load_page(f.ctx, f.doc, C.int(pageNumber))
+	page := C.load_page(f.ctx, f.doc, C.int(pageNumber))
+	if page == nil {
+		return nil, ErrLoadPage
+	}
+
 	defer C.fz_drop_page(f.ctx, page)
 
 	var bounds C.fz_rect
@@ -290,7 +327,10 @@ func (f *Document) ImagePNG(pageNumber int, dpi float64) ([]byte, error) {
 	defer C.fz_drop_device(f.ctx, device)
 
 	drawMatrix := C.fz_identity
-	C.fz_run_page_contents(f.ctx, page, device, drawMatrix, nil)
+	ret := C.run_page_contents(f.ctx, page, device, drawMatrix, nil)
+	if ret == 0 {
+		return nil, ErrRunPageContents
+	}
 
 	C.fz_close_device(f.ctx, device)
 
@@ -312,7 +352,11 @@ func (f *Document) Links(pageNumber int) ([]Link, error) {
 		return nil, ErrPageMissing
 	}
 
-	page := C.fz_load_page(f.ctx, f.doc, C.int(pageNumber))
+	page := C.load_page(f.ctx, f.doc, C.int(pageNumber))
+	if page == nil {
+		return nil, ErrLoadPage
+	}
+
 	defer C.fz_drop_page(f.ctx, page)
 
 	links := C.fz_load_links(f.ctx, page)
@@ -349,7 +393,11 @@ func (f *Document) Text(pageNumber int) (string, error) {
 		return "", ErrPageMissing
 	}
 
-	page := C.fz_load_page(f.ctx, f.doc, C.int(pageNumber))
+	page := C.load_page(f.ctx, f.doc, C.int(pageNumber))
+	if page == nil {
+		return "", ErrLoadPage
+	}
+
 	defer C.fz_drop_page(f.ctx, page)
 
 	var bounds C.fz_rect
@@ -369,7 +417,10 @@ func (f *Document) Text(pageNumber int) (string, error) {
 	defer C.fz_drop_device(f.ctx, device)
 
 	var cookie C.fz_cookie
-	C.fz_run_page_contents(f.ctx, page, device, ctm, &cookie)
+	ret := C.run_page_contents(f.ctx, page, device, ctm, &cookie)
+	if ret == 0 {
+		return "", ErrRunPageContents
+	}
 
 	C.fz_close_device(f.ctx, device)
 
@@ -390,7 +441,11 @@ func (f *Document) HTML(pageNumber int, header bool) (string, error) {
 		return "", ErrPageMissing
 	}
 
-	page := C.fz_load_page(f.ctx, f.doc, C.int(pageNumber))
+	page := C.load_page(f.ctx, f.doc, C.int(pageNumber))
+	if page == nil {
+		return "", ErrLoadPage
+	}
+
 	defer C.fz_drop_page(f.ctx, page)
 
 	var bounds C.fz_rect
@@ -410,7 +465,10 @@ func (f *Document) HTML(pageNumber int, header bool) (string, error) {
 	defer C.fz_drop_device(f.ctx, device)
 
 	var cookie C.fz_cookie
-	C.fz_run_page_contents(f.ctx, page, device, ctm, &cookie)
+	ret := C.run_page_contents(f.ctx, page, device, ctm, &cookie)
+	if ret == 0 {
+		return "", ErrRunPageContents
+	}
 
 	C.fz_close_device(f.ctx, device)
 
@@ -444,7 +502,11 @@ func (f *Document) SVG(pageNumber int) (string, error) {
 		return "", ErrPageMissing
 	}
 
-	page := C.fz_load_page(f.ctx, f.doc, C.int(pageNumber))
+	page := C.load_page(f.ctx, f.doc, C.int(pageNumber))
+	if page == nil {
+		return "", ErrLoadPage
+	}
+
 	defer C.fz_drop_page(f.ctx, page)
 
 	var bounds C.fz_rect
@@ -465,7 +527,10 @@ func (f *Document) SVG(pageNumber int) (string, error) {
 	defer C.fz_drop_device(f.ctx, device)
 
 	var cookie C.fz_cookie
-	C.fz_run_page_contents(f.ctx, page, device, ctm, &cookie)
+	ret := C.run_page_contents(f.ctx, page, device, ctm, &cookie)
+	if ret == 0 {
+		return "", ErrRunPageContents
+	}
 
 	C.fz_close_device(f.ctx, device)
 	C.fz_close_output(f.ctx, out)
@@ -545,7 +610,11 @@ func (f *Document) Bound(pageNumber int) (image.Rectangle, error) {
 		return image.Rectangle{}, ErrPageMissing
 	}
 
-	page := C.fz_load_page(f.ctx, f.doc, C.int(pageNumber))
+	page := C.load_page(f.ctx, f.doc, C.int(pageNumber))
+	if page == nil {
+		return image.Rectangle{}, ErrLoadPage
+	}
+
 	defer C.fz_drop_page(f.ctx, page)
 
 	var bounds C.fz_rect
