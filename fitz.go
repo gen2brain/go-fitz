@@ -208,8 +208,6 @@ func (f *Document) ImageDPI(pageNumber int, dpi float64) (image.Image, error) {
 	f.mtx.Lock()
 	defer f.mtx.Unlock()
 
-	img := image.RGBA{}
-
 	if pageNumber >= f.NumPage() {
 		return nil, ErrPageMissing
 	}
@@ -249,6 +247,7 @@ func (f *Document) ImageDPI(pageNumber int, dpi float64) (image.Image, error) {
 		return nil, ErrPixmapSamples
 	}
 
+	img := image.RGBA{}
 	img.Pix = C.GoBytes(unsafe.Pointer(pixels), C.int(4*bbox.x1*bbox.y1))
 	img.Rect = image.Rect(int(bbox.x0), int(bbox.y0), int(bbox.x1), int(bbox.y1))
 	img.Stride = 4 * img.Rect.Max.X
@@ -429,6 +428,8 @@ func (f *Document) HTML(pageNumber int, header bool) (string, error) {
 		C.fz_print_stext_trailer_as_html(f.ctx, out)
 	}
 
+	C.fz_close_output(f.ctx, out)
+
 	str := C.GoString(C.fz_string_from_buffer(f.ctx, buf))
 
 	return str, nil
@@ -467,6 +468,7 @@ func (f *Document) SVG(pageNumber int) (string, error) {
 	C.fz_run_page(f.ctx, page, device, ctm, &cookie)
 
 	C.fz_close_device(f.ctx, device)
+	C.fz_close_output(f.ctx, out)
 
 	str := C.GoString(C.fz_string_from_buffer(f.ctx, buf))
 
