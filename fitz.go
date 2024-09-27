@@ -199,12 +199,12 @@ func (f *Document) NumPage() int {
 }
 
 // Image returns image for given page number.
-func (f *Document) Image(pageNumber int) (image.Image, error) {
+func (f *Document) Image(pageNumber int) (*image.RGBA, error) {
 	return f.ImageDPI(pageNumber, 300.0)
 }
 
 // ImageDPI returns image for given page number and DPI.
-func (f *Document) ImageDPI(pageNumber int, dpi float64) (image.Image, error) {
+func (f *Document) ImageDPI(pageNumber int, dpi float64) (*image.RGBA, error) {
 	f.mtx.Lock()
 	defer f.mtx.Unlock()
 
