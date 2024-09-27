@@ -1,6 +1,9 @@
 package fitz
 
-import "bytes"
+import (
+	"bytes"
+	"encoding/binary"
+)
 
 // contentType returns document MIME type.
 func contentType(b []byte) string {
@@ -51,6 +54,12 @@ func contentType(b []byte) string {
 		return "image/vnd.adobe.photoshop"
 	case isZIP(b):
 		switch {
+		case isDOCX(b):
+			return "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+		case isXLSX(b):
+			return "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+		case isPPTX(b):
+			return "application/vnd.openxmlformats-officedocument.presentationml.presentation"
 		case isEPUB(b):
 			return "application/epub+zip"
 		case isXPS(b):
@@ -244,4 +253,131 @@ func isXML(b []byte) bool {
 		return b[0] == 0xEF && b[1] == 0xBB && b[2] == 0xBF && b[3] == 0x3C &&
 			b[4] == 0x3F && b[5] == 0x78 && b[6] == 0x6D && b[7] == 0x6C
 	}
+}
+
+type docType int
+
+const (
+	typeDocx docType = iota + 1
+	typeXlsx
+	typePptx
+	typeOoxml
+)
+
+func isDOCX(buf []byte) bool {
+	typ, ok := msooxml(buf)
+	return ok && typ == typeDocx
+}
+
+func isXLSX(buf []byte) bool {
+	typ, ok := msooxml(buf)
+	return ok && typ == typeXlsx
+}
+
+func isPPTX(buf []byte) bool {
+	typ, ok := msooxml(buf)
+	return ok && typ == typePptx
+}
+
+func msooxml(buf []byte) (typ docType, found bool) {
+	// make sure the first file is correct
+	if v, ok := checkMSOoml(buf, 0x1E); ok {
+		return v, ok
+	}
+
+	if !compareBytes(buf, []byte("[Content_Types].xml"), 0x1E) &&
+		!compareBytes(buf, []byte("_rels/.rels"), 0x1E) &&
+		!compareBytes(buf, []byte("docProps"), 0x1E) &&
+		!compareBytes(buf, []byte("_rels"), 0x1E) {
+		return
+	}
+
+	// skip to the second local file header
+	// since some documents include a 520-byte extra field following the file
+	// header, we need to scan for the next header
+	startOffset := int(binary.LittleEndian.Uint32(buf[18:22]) + 49)
+	idx := search(buf, startOffset, 6000)
+	if idx == -1 {
+		return
+	}
+
+	// now skip to the *third* local file header; again, we need to scan due to a
+	// 520-byte extra field following the file header
+	startOffset += idx + 4 + 26
+	idx = search(buf, startOffset, 6000)
+	if idx == -1 {
+		return
+	}
+
+	// and check the subdirectory name to determine which type of OOXML
+	// file we have.  Correct the mimetype with the registered ones:
+	// http://technet.microsoft.com/en-us/library/cc179224.aspx
+	startOffset += idx + 4 + 26
+	if typ, ok := checkMSOoml(buf, startOffset); ok {
+		return typ, ok
+	}
+
+	// OpenOffice/Libreoffice orders ZIP entry differently, so check the 4th file
+	startOffset += 26
+	idx = search(buf, startOffset, 6000)
+	if idx == -1 {
+		return typeOoxml, true
+	}
+
+	startOffset += idx + 4 + 26
+	if typ, ok := checkMSOoml(buf, startOffset); ok {
+		return typ, ok
+	} else {
+		return typeOoxml, true
+	}
+}
+
+func compareBytes(slice, subSlice []byte, startOffset int) bool {
+	sl := len(subSlice)
+
+	if startOffset+sl > len(slice) {
+		return false
+	}
+
+	s := slice[startOffset : startOffset+sl]
+	for i := range s {
+		if subSlice[i] != s[i] {
+			return false
+		}
+	}
+
+	return true
+}
+
+func checkMSOoml(buf []byte, offset int) (typ docType, ok bool) {
+	ok = true
+
+	switch {
+	case compareBytes(buf, []byte("word/"), offset):
+		typ = typeDocx
+	case compareBytes(buf, []byte("ppt/"), offset):
+		typ = typePptx
+	case compareBytes(buf, []byte("xl/"), offset):
+		typ = typeXlsx
+	default:
+		ok = false
+	}
+
+	return
+}
+
+func search(buf []byte, start, rangeNum int) int {
+	length := len(buf)
+	end := start + rangeNum
+	signature := []byte{'P', 'K', 0x03, 0x04}
+
+	if end > length {
+		end = length
+	}
+
+	if start >= end {
+		return -1
+	}
+
+	return bytes.Index(buf[start:end], signature)
 }
