@@ -1,6 +1,7 @@
 package fitz_test
 
 import (
+	"errors"
 	"fmt"
 	"image"
 	"image/jpeg"
@@ -183,7 +184,7 @@ func TestPNG(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	
+
 	defer doc.Close()
 
 	tmpDir, err := os.MkdirTemp(os.TempDir(), "fitz")
@@ -198,6 +199,7 @@ func TestPNG(t *testing.T) {
 		if err != nil {
 			t.Error(err)
 		}
+
 		if err = os.WriteFile(filepath.Join(tmpDir, fmt.Sprintf("test%03d.png", n)), png, 0644); err != nil {
 			t.Error(err)
 		}
@@ -287,7 +289,7 @@ func TestBound(t *testing.T) {
 	}
 
 	_, err = doc.Bound(doc.NumPage())
-	if err != fitz.ErrPageMissing {
+	if !errors.Is(err, fitz.ErrPageMissing) {
 		t.Error(fmt.Errorf("ErrPageMissing not returned got %v", err))
 	}
 }

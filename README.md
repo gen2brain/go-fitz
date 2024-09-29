@@ -11,12 +11,16 @@ Go wrapper for [MuPDF](http://mupdf.com/) fitz library that can extract pages fr
 * `static` - build with static external MuPDF library (used with `extlib`)
 * `pkgconfig` - enable pkg-config (used with `extlib`)
 * `musl` - use musl compiled library
+* `nocgo` - experimental [purego](https://github.com/ebitengine/purego) implementation (can also be used with `CGO_ENABLED=0`)
 
 ### Notes
 
 The bundled libraries are built without CJK fonts, if you need them you must use the external library.
 
 Calling e.g. Image() or Text() methods concurrently for the same document is not supported.
+
+Purego implementation requires `libffi` and `libmupdf` shared libraries on runtime.
+You must set `fitz.FzVersion` in your code or set `FZ_VERSION` environment variable to exact version of the shared library. 
     
 ### Example
 ```go

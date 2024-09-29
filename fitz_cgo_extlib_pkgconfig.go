@@ -1,4 +1,4 @@
-//go:build extlib && pkgconfig
+//go:build cgo && !nocgo && extlib && pkgconfig
 
 package fitz
 
