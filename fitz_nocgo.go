@@ -74,9 +74,7 @@ func NewFromMemory(b []byte) (f *Document, err error) {
 
 	fzRegisterDocumentHandlers(f.ctx)
 
-	stream := fzOpenMemory(f.ctx, unsafe.SliceData(b), uint64(len(b)))
-	f.stream = fzKeepStream(f.ctx, stream)
-
+	f.stream = fzOpenMemory(f.ctx, unsafe.SliceData(b), uint64(len(b)))
 	if f.stream == nil {
 		err = ErrOpenMemory
 		return
@@ -533,7 +531,6 @@ var (
 	fzOpenDocument             func(ctx *fzContext, filename string) *fzDocument
 	fzOpenDocumentWithStream   func(ctx *fzContext, magic string, stream *fzStream) *fzDocument
 	fzOpenMemory               func(ctx *fzContext, data *uint8, len uint64) *fzStream
-	fzKeepStream               func(ctx *fzContext, stm *fzStream) *fzStream
 	fzDropStream               func(ctx *fzContext, stm *fzStream)
 	fzRegisterDocumentHandlers func(ctx *fzContext)
 	fzNeedsPassword            func(ctx *fzContext, doc *fzDocument) int
@@ -591,7 +588,6 @@ func init() {
 	purego.RegisterLibFunc(&fzOpenDocument, libmupdf, "fz_open_document")
 	purego.RegisterLibFunc(&fzOpenDocumentWithStream, libmupdf, "fz_open_document_with_stream")
 	purego.RegisterLibFunc(&fzOpenMemory, libmupdf, "fz_open_memory")
-	purego.RegisterLibFunc(&fzKeepStream, libmupdf, "fz_keep_stream")
 	purego.RegisterLibFunc(&fzDropStream, libmupdf, "fz_drop_stream")
 	purego.RegisterLibFunc(&fzRegisterDocumentHandlers, libmupdf, "fz_register_document_handlers")
 	purego.RegisterLibFunc(&fzNeedsPassword, libmupdf, "fz_needs_password")

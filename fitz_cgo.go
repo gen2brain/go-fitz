@@ -136,7 +136,6 @@ func NewFromMemory(b []byte) (f *Document, err error) {
 	C.fz_register_document_handlers(f.ctx)
 
 	f.stream = C.fz_open_memory(f.ctx, (*C.uchar)(&b[0]), C.size_t(len(b)))
-
 	if f.stream == nil {
 		err = ErrOpenMemory
 		return
