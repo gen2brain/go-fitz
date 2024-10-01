@@ -7,6 +7,8 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strconv"
+	"strings"
 	"sync"
 	"unsafe"
 
@@ -623,6 +625,33 @@ func init() {
 	purego.RegisterLibFunc(&fzPrintStextPageAsHTML, libmupdf, "fz_print_stext_page_as_html")
 	purego.RegisterLibFunc(&fzPrintStextHeaderAsHTML, libmupdf, "fz_print_stext_header_as_html")
 	purego.RegisterLibFunc(&fzPrintStextTrailerAsHTML, libmupdf, "fz_print_stext_trailer_as_html")
+
+	ver := version()
+	if ver != "" {
+		FzVersion = ver
+	}
+}
+
+func version() string {
+	if fzNewContextImp(nil, nil, uint64(MaxStore), FzVersion) != nil {
+		return FzVersion
+	}
+
+	s := strings.Split(FzVersion, ".")
+	v := strings.Join(s[:len(s)-1], ".")
+
+	for x := 10; x >= 0; x-- {
+		ver := v + "." + strconv.Itoa(x)
+		if ver == FzVersion {
+			continue
+		}
+
+		if fzNewContextImp(nil, nil, uint64(MaxStore), ver) != nil {
+			return ver
+		}
+	}
+
+	return ""
 }
 
 type bundle struct {
