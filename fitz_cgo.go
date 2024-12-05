@@ -215,6 +215,11 @@ func (f *Document) ImageDPI(pageNumber int, dpi float64) (*image.RGBA, error) {
 	bounds = C.fz_transform_rect(bounds, ctm)
 	bbox = C.fz_round_rect(bounds)
 
+	imgPixLength := C.int(4 * bbox.x1 * bbox.y1)
+	if imgPixLength < 0 {
+		return nil, ErrPixelsLength
+	}
+
 	pixmap := C.fz_new_pixmap_with_bbox(f.ctx, C.fz_device_rgb(f.ctx), bbox, nil, 1)
 	if pixmap == nil {
 		return nil, ErrCreatePixmap
@@ -241,7 +246,7 @@ func (f *Document) ImageDPI(pageNumber int, dpi float64) (*image.RGBA, error) {
 	}
 
 	img := image.NewRGBA(image.Rect(int(bbox.x0), int(bbox.y0), int(bbox.x1), int(bbox.y1)))
-	copy(img.Pix, C.GoBytes(unsafe.Pointer(pixels), C.int(4*bbox.x1*bbox.y1)))
+	copy(img.Pix, C.GoBytes(unsafe.Pointer(pixels), imgPixLength))
 
 	return img, nil
 }
