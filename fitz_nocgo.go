@@ -64,6 +64,9 @@ func New(filename string) (f *Document, err error) {
 
 // NewFromMemory returns new fitz document from byte slice.
 func NewFromMemory(b []byte) (f *Document, err error) {
+	if len(b) = 0 {
+		return nil, ErrEmptyBytes
+	}
 	f = &Document{}
 
 	f.ctx = fzNewContextImp(nil, nil, uint64(MaxStore), FzVersion)

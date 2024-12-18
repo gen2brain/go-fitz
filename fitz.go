@@ -12,6 +12,7 @@ var (
 	ErrNoSuchFile      = errors.New("fitz: no such file")
 	ErrCreateContext   = errors.New("fitz: cannot create context")
 	ErrOpenDocument    = errors.New("fitz: cannot open document")
+	ErrEmptyBytes      = errors.New("fitz: cannot send empty bytes")
 	ErrOpenMemory      = errors.New("fitz: cannot open memory")
 	ErrLoadPage        = errors.New("fitz: cannot load page")
 	ErrRunPageContents = errors.New("fitz: cannot run page contents")

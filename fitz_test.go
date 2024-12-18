@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"image"
 	"image/jpeg"
+	"io"
 	"os"
 	"path/filepath"
 	"testing"
@@ -293,3 +294,26 @@ func TestBound(t *testing.T) {
 		t.Error(fmt.Errorf("ErrPageMissing not returned got %v", err))
 	}
 }
+
+func TestEmptyBytes(t *testing.T) {
+	var err error
+	// empty reader
+	_, err = fitz.NewFromReader(emptyReader{})
+	if !errors.Is(err, fitz.ErrEmptyBytes) {
+		t.Errorf("Expected ErrEmptyBytes, got %v", err)
+	}
+	// nil slice
+	_, err = fitz.NewFromMemory(nil)
+	if !errors.Is(err, fitz.ErrEmptyBytes) {
+		t.Errorf("Expected ErrEmptyBytes, got %v", err)
+	}
+	// empty slice
+	_, err = fitz.NewFromMemory(make([]byte, 0))
+	if !errors.Is(err, fitz.ErrEmptyBytes) {
+		t.Errorf("Expected ErrEmptyBytes, got %v", err)
+	}
+}
+
+type emptyReader struct{}
+
+func (emptyReader) Read([]byte) (int, error) { return 0, io.EOF }
