@@ -19,5 +19,15 @@ func loadLibrary() uintptr {
 		panic(fmt.Errorf("cannot load library: %w", err))
 	}
 
-	return uintptr(handle)
+	return handle
+}
+
+// procAddress returns the address of symbol name.
+func procAddress(handle uintptr, procName string) uintptr {
+	addr, err := purego.Dlsym(handle, procName)
+	if err != nil {
+		panic(fmt.Errorf("cannot get proc address for %s: %w", procName, err))
+	}
+
+	return addr
 }

@@ -5,6 +5,8 @@ package fitz
 import (
 	"fmt"
 	"syscall"
+
+	"golang.org/x/sys/windows"
 )
 
 const (
@@ -19,4 +21,14 @@ func loadLibrary() uintptr {
 	}
 
 	return uintptr(handle)
+}
+
+// procAddress returns the address of symbol name.
+func procAddress(handle uintptr, procName string) uintptr {
+	addr, err := windows.GetProcAddress(windows.Handle(handle), procName)
+	if err != nil {
+		panic(fmt.Errorf("cannot get proc address for %s: %w", procName, err))
+	}
+
+	return addr
 }
