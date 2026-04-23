@@ -317,3 +317,23 @@ func TestEmptyBytes(t *testing.T) {
 type emptyReader struct{}
 
 func (emptyReader) Read([]byte) (int, error) { return 0, io.EOF }
+
+// TestQuiet verifies that enabling fitz.Quiet does not break normal
+// Document creation and text extraction. It cannot reliably assert
+// absence of stderr output without redirecting fd 2, which is both
+// racy and platform-specific; the test simply exercises the code path.
+func TestQuiet(t *testing.T) {
+	prev := fitz.Quiet
+	fitz.Quiet = true
+	defer func() { fitz.Quiet = prev }()
+
+	doc, err := fitz.New(filepath.Join("testdata", "test.pdf"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer doc.Close()
+
+	if _, err := doc.Text(0); err != nil {
+		t.Fatal(err)
+	}
+}

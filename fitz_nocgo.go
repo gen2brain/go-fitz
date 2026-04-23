@@ -45,6 +45,10 @@ func New(filename string) (f *Document, err error) {
 		return
 	}
 
+	if Quiet {
+		applySilence(f.ctx)
+	}
+
 	fzRegisterDocumentHandlers(f.ctx)
 
 	f.doc = fzOpenDocument(f.ctx, filename)
@@ -73,6 +77,10 @@ func NewFromMemory(b []byte) (f *Document, err error) {
 	if f.ctx == nil {
 		err = ErrCreateContext
 		return
+	}
+
+	if Quiet {
+		applySilence(f.ctx)
 	}
 
 	fzRegisterDocumentHandlers(f.ctx)
@@ -567,7 +575,18 @@ var (
 	fzPrintStextPageAsHTML     func(ctx *fzContext, out *fzOutput, page *fzStextPage, id int)
 	fzPrintStextHeaderAsHTML   func(ctx *fzContext, out *fzOutput)
 	fzPrintStextTrailerAsHTML  func(ctx *fzContext, out *fzOutput)
+	fzSetWarningCallback       func(ctx *fzContext, cb uintptr, user *byte)
+	fzSetErrorCallback         func(ctx *fzContext, cb uintptr, user *byte)
+
+	silentCallback uintptr
 )
+
+// applySilence installs no-op warning/error callbacks on the given context,
+// suppressing MuPDF stderr output. See package-level Quiet.
+func applySilence(ctx *fzContext) {
+	fzSetWarningCallback(ctx, silentCallback, nil)
+	fzSetErrorCallback(ctx, silentCallback, nil)
+}
 
 func init() {
 	libmupdf = loadLibrary()
@@ -624,6 +643,10 @@ func init() {
 	purego.RegisterLibFunc(&fzPrintStextPageAsHTML, libmupdf, "fz_print_stext_page_as_html")
 	purego.RegisterLibFunc(&fzPrintStextHeaderAsHTML, libmupdf, "fz_print_stext_header_as_html")
 	purego.RegisterLibFunc(&fzPrintStextTrailerAsHTML, libmupdf, "fz_print_stext_trailer_as_html")
+	purego.RegisterLibFunc(&fzSetWarningCallback, libmupdf, "fz_set_warning_callback")
+	purego.RegisterLibFunc(&fzSetErrorCallback, libmupdf, "fz_set_error_callback")
+
+	silentCallback = purego.NewCallback(func(user *byte, message *byte) {})
 
 	ver := version()
 	if ver != "" {

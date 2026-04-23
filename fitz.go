@@ -26,6 +26,19 @@ var (
 // MaxStore is maximum size in bytes of the resource store, before it will start evicting cached resources such as fonts and images.
 var MaxStore = 256 << 20
 
+// Quiet silences MuPDF warning and error output on Documents created while
+// this is true. When enabled, no-op callbacks are installed on each new
+// Document's fitz context, so MuPDF neither writes warnings/errors to
+// stderr nor invokes any default handler. Errors are still surfaced to
+// callers via Go error returns.
+//
+// Quiet is read when a Document is created; changing it does not affect
+// Documents that are already open. It is the caller's responsibility to
+// synchronize writes if Documents are created concurrently.
+//
+// This addresses issue #132.
+var Quiet bool
+
 // FzVersion is used for experimental purego implementation, it must be exactly the same as libmupdf shared library version.
 // It is also possible to set `FZ_VERSION` environment variable.
 var FzVersion = "1.24.9"

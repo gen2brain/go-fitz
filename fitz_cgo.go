@@ -62,6 +62,16 @@ int run_page_contents(fz_context *ctx, fz_page *page, fz_device *dev, fz_matrix 
 
 	return 1;
 }
+
+static void go_fitz_silent_cb(void *user, const char *message) {
+	(void)user;
+	(void)message;
+}
+
+void go_fitz_silence(fz_context *ctx) {
+	fz_set_warning_callback(ctx, go_fitz_silent_cb, NULL);
+	fz_set_error_callback(ctx, go_fitz_silent_cb, NULL);
+}
 */
 import "C"
 
@@ -103,6 +113,10 @@ func New(filename string) (f *Document, err error) {
 		return
 	}
 
+	if Quiet {
+		C.go_fitz_silence(f.ctx)
+	}
+
 	C.fz_register_document_handlers(f.ctx)
 
 	cfilename := C.CString(filename)
@@ -134,6 +148,10 @@ func NewFromMemory(b []byte) (f *Document, err error) {
 	if f.ctx == nil {
 		err = ErrCreateContext
 		return
+	}
+
+	if Quiet {
+		C.go_fitz_silence(f.ctx)
 	}
 
 	C.fz_register_document_handlers(f.ctx)
