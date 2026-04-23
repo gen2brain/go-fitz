@@ -113,9 +113,7 @@ func New(filename string) (f *Document, err error) {
 		return
 	}
 
-	if Quiet {
-		C.go_fitz_silence(f.ctx)
-	}
+	C.go_fitz_silence(f.ctx)
 
 	C.fz_register_document_handlers(f.ctx)
 
@@ -150,9 +148,7 @@ func NewFromMemory(b []byte) (f *Document, err error) {
 		return
 	}
 
-	if Quiet {
-		C.go_fitz_silence(f.ctx)
-	}
+	C.go_fitz_silence(f.ctx)
 
 	C.fz_register_document_handlers(f.ctx)
 

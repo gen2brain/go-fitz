@@ -45,9 +45,7 @@ func New(filename string) (f *Document, err error) {
 		return
 	}
 
-	if Quiet {
-		applySilence(f.ctx)
-	}
+	applySilence(f.ctx)
 
 	fzRegisterDocumentHandlers(f.ctx)
 
@@ -79,9 +77,7 @@ func NewFromMemory(b []byte) (f *Document, err error) {
 		return
 	}
 
-	if Quiet {
-		applySilence(f.ctx)
-	}
+	applySilence(f.ctx)
 
 	fzRegisterDocumentHandlers(f.ctx)
 
@@ -582,7 +578,7 @@ var (
 )
 
 // applySilence installs no-op warning/error callbacks on the given context,
-// suppressing MuPDF stderr output. See package-level Quiet.
+// suppressing MuPDF stderr output.
 func applySilence(ctx *fzContext) {
 	fzSetWarningCallback(ctx, silentCallback, nil)
 	fzSetErrorCallback(ctx, silentCallback, nil)
