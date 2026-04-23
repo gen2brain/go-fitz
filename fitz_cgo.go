@@ -5,6 +5,11 @@ package fitz
 /*
 #include <mupdf/fitz.h>
 #include <stdlib.h>
+#if defined(_WIN32)
+#include <windows.h>
+#else
+#include <pthread.h>
+#endif
 
 const char *fz_version = FZ_VERSION;
 #if defined(_WIN32)
@@ -12,6 +17,91 @@ const char *fz_version = FZ_VERSION;
 #else
 	typedef unsigned long store;
 #endif
+
+typedef struct go_fitz_locks {
+#if defined(_WIN32)
+	CRITICAL_SECTION mutex[FZ_LOCK_MAX];
+#else
+	pthread_mutex_t mutex[FZ_LOCK_MAX];
+#endif
+	fz_locks_context ctx;
+} go_fitz_locks;
+
+static go_fitz_locks go_fitz_global_locks;
+#if defined(_WIN32)
+static INIT_ONCE go_fitz_once = INIT_ONCE_STATIC_INIT;
+static int go_fitz_locks_ready = 0;
+#else
+static pthread_once_t go_fitz_once = PTHREAD_ONCE_INIT;
+static int go_fitz_locks_ready = 0;
+#endif
+
+static void go_fitz_lock(void *user, int lock) {
+	go_fitz_locks *locks = (go_fitz_locks *)user;
+#if defined(_WIN32)
+	EnterCriticalSection(&locks->mutex[lock]);
+#else
+	pthread_mutex_lock(&locks->mutex[lock]);
+#endif
+}
+
+static void go_fitz_unlock(void *user, int lock) {
+	go_fitz_locks *locks = (go_fitz_locks *)user;
+#if defined(_WIN32)
+	LeaveCriticalSection(&locks->mutex[lock]);
+#else
+	pthread_mutex_unlock(&locks->mutex[lock]);
+#endif
+}
+
+static void go_fitz_locks_init_impl(void) {
+	int i;
+
+	for (i = 0; i < FZ_LOCK_MAX; i++) {
+#if defined(_WIN32)
+		InitializeCriticalSection(&go_fitz_global_locks.mutex[i]);
+#else
+		if (pthread_mutex_init(&go_fitz_global_locks.mutex[i], NULL) != 0) {
+			while (--i >= 0) {
+				pthread_mutex_destroy(&go_fitz_global_locks.mutex[i]);
+			}
+			go_fitz_locks_ready = 0;
+			return;
+		}
+#endif
+	}
+
+	go_fitz_global_locks.ctx.user = &go_fitz_global_locks;
+	go_fitz_global_locks.ctx.lock = go_fitz_lock;
+	go_fitz_global_locks.ctx.unlock = go_fitz_unlock;
+	go_fitz_locks_ready = 1;
+}
+
+#if defined(_WIN32)
+static BOOL CALLBACK go_fitz_locks_once(PINIT_ONCE InitOnce, PVOID Parameter, PVOID *Context) {
+	go_fitz_locks_init_impl();
+	return go_fitz_locks_ready ? TRUE : FALSE;
+}
+#else
+static void go_fitz_locks_once(void) {
+	go_fitz_locks_init_impl();
+}
+#endif
+
+const fz_locks_context *go_fitz_locks_context(void) {
+#if defined(_WIN32)
+	if (!InitOnceExecuteOnce(&go_fitz_once, go_fitz_locks_once, NULL, NULL)) {
+		return NULL;
+	}
+#else
+	pthread_once(&go_fitz_once, go_fitz_locks_once);
+#endif
+	if (!go_fitz_locks_ready) {
+		return NULL;
+	}
+
+	return &go_fitz_global_locks.ctx;
+}
 
 fz_document *open_document(fz_context *ctx, const char *filename) {
 	fz_document *doc;
@@ -75,17 +165,36 @@ import (
 )
 
 // Document represents fitz document.
+// Methods on the same Document are not safe for concurrent use.
+// In particular, Close must not race with any other method.
 type Document struct {
 	ctx    *C.struct_fz_context
-	data   []byte // binds data to the Document lifecycle avoiding premature GC
+	cdata  unsafe.Pointer
 	doc    *C.struct_fz_document
 	mtx    sync.Mutex
 	stream *C.fz_stream
 }
 
+func (f *Document) initContext() error {
+	f.ctx = (*C.struct_fz_context)(unsafe.Pointer(C.fz_new_context_imp(nil, C.go_fitz_locks_context(), C.store(MaxStore), C.fz_version)))
+	if f.ctx == nil {
+		return ErrCreateContext
+	}
+
+	C.fz_register_document_handlers(f.ctx)
+
+	return nil
+}
+
 // New returns new fitz document.
 func New(filename string) (f *Document, err error) {
 	f = &Document{}
+	defer func() {
+		if err != nil && f != nil {
+			_ = f.Close()
+			f = nil
+		}
+	}()
 
 	filename, err = filepath.Abs(filename)
 	if err != nil {
@@ -97,13 +206,9 @@ func New(filename string) (f *Document, err error) {
 		return
 	}
 
-	f.ctx = (*C.struct_fz_context)(unsafe.Pointer(C.fz_new_context_imp(nil, nil, C.store(MaxStore), C.fz_version)))
-	if f.ctx == nil {
-		err = ErrCreateContext
+	if err = f.initContext(); err != nil {
 		return
 	}
-
-	C.fz_register_document_handlers(f.ctx)
 
 	cfilename := C.CString(filename)
 	defer C.free(unsafe.Pointer(cfilename))
@@ -129,16 +234,31 @@ func NewFromMemory(b []byte) (f *Document, err error) {
 		return nil, ErrEmptyBytes
 	}
 	f = &Document{}
+	defer func() {
+		if err != nil && f != nil {
+			_ = f.Close()
+			f = nil
+		}
+	}()
 
-	f.ctx = (*C.struct_fz_context)(unsafe.Pointer(C.fz_new_context_imp(nil, nil, C.store(MaxStore), C.fz_version)))
-	if f.ctx == nil {
-		err = ErrCreateContext
+	if err = f.initContext(); err != nil {
 		return
 	}
 
-	C.fz_register_document_handlers(f.ctx)
+	f.cdata = C.CBytes(b)
+	if f.cdata == nil {
+		err = ErrOpenMemory
+		return
+	}
 
-	f.stream = C.fz_open_memory(f.ctx, (*C.uchar)(&b[0]), C.size_t(len(b)))
+	stream := C.fz_open_memory(f.ctx, (*C.uchar)(f.cdata), C.size_t(len(b)))
+	if stream == nil {
+		err = ErrOpenMemory
+		return
+	}
+
+	f.stream = C.fz_keep_stream(f.ctx, stream)
+	C.fz_drop_stream(f.ctx, stream)
 	if f.stream == nil {
 		err = ErrOpenMemory
 		return
@@ -150,14 +270,13 @@ func NewFromMemory(b []byte) (f *Document, err error) {
 		return
 	}
 
-	f.data = b
-
 	cmagic := C.CString(magic)
 	defer C.free(unsafe.Pointer(cmagic))
 
 	f.doc = C.open_document_with_stream(f.ctx, cmagic, f.stream)
 	if f.doc == nil {
 		err = ErrOpenDocument
+		return
 	}
 
 	ret := C.fz_needs_password(f.ctx, f.doc)
@@ -183,6 +302,7 @@ func NewFromReader(r io.Reader) (f *Document, err error) {
 }
 
 // NumPage returns total number of pages in document.
+// This method is intentionally lock-free; callers must not race it with Close.
 func (f *Document) NumPage() int {
 	return int(C.fz_count_pages(f.ctx, f.doc))
 }
@@ -502,6 +622,7 @@ func (f *Document) SVG(pageNumber int) (string, error) {
 }
 
 // ToC returns the table of contents (also known as outline).
+// This method is intentionally lock-free; callers must not race it with Close.
 func (f *Document) ToC() ([]Outline, error) {
 	data := make([]Outline, 0)
 
@@ -535,6 +656,7 @@ func (f *Document) ToC() ([]Outline, error) {
 }
 
 // Metadata returns the map with standard metadata.
+// This method is intentionally lock-free; callers must not race it with Close.
 func (f *Document) Metadata() map[string]string {
 	data := make(map[string]string)
 
@@ -585,15 +707,30 @@ func (f *Document) Bound(pageNumber int) (image.Rectangle, error) {
 }
 
 // Close closes the underlying fitz document.
+// Close must not be called concurrently with other Document methods.
 func (f *Document) Close() error {
-	if f.stream != nil {
+	f.mtx.Lock()
+	defer f.mtx.Unlock()
+
+	if f.stream != nil && f.ctx != nil {
 		C.fz_drop_stream(f.ctx, f.stream)
+		f.stream = nil
 	}
 
-	C.fz_drop_document(f.ctx, f.doc)
-	C.fz_drop_context(f.ctx)
+	if f.doc != nil && f.ctx != nil {
+		C.fz_drop_document(f.ctx, f.doc)
+		f.doc = nil
+	}
 
-	f.data = nil
+	if f.ctx != nil {
+		C.fz_drop_context(f.ctx)
+		f.ctx = nil
+	}
+
+	if f.cdata != nil {
+		C.free(f.cdata)
+		f.cdata = nil
+	}
 
 	return nil
 }

@@ -17,7 +17,8 @@ Go wrapper for [MuPDF](http://mupdf.com/) fitz library that can extract pages fr
 
 The bundled libraries are built without CJK fonts, if you need them you must use the external library.
 
-Calling e.g. Image() or Text() methods concurrently for the same document is not supported.
+Concurrent rendering is supported when each goroutine uses its own `Document` (MuPDF contexts are created with lock callbacks).
+Concurrency on the same `Document` is not supported: do not call methods (including `Close`) concurrently on one document instance.
 
 Purego implementation requires `libffi` and `libmupdf` shared libraries on runtime.
 You must set `fitz.FzVersion` in your code or set `FZ_VERSION` environment variable to exact version of the shared library. 
