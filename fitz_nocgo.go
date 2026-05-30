@@ -175,8 +175,15 @@ func (f *Document) ImageDPI(pageNumber int, dpi float64) (*image.RGBA, error) {
 		return nil, ErrPixmapSamples
 	}
 
+	width := int(bbox.X1) - int(bbox.X0)
+	height := int(bbox.Y1) - int(bbox.Y0)
+	n, err := pixmapSampleBytes(width, height)
+	if err != nil {
+		return nil, err
+	}
+
 	img := image.NewRGBA(image.Rect(int(bbox.X0), int(bbox.Y0), int(bbox.X1), int(bbox.Y1)))
-	copy(img.Pix, unsafe.Slice(pixels, 4*bbox.X1*bbox.Y1))
+	copy(img.Pix, unsafe.Slice(pixels, n))
 
 	return img, nil
 }

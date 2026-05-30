@@ -7,6 +7,9 @@ import (
 	"unsafe"
 )
 
+// bytesPerPixelRGBA is the number of bytes per pixel in an RGBA pixmap (R, G, B, A).
+const bytesPerPixelRGBA = 4
+
 // Errors.
 var (
 	ErrNoSuchFile      = errors.New("fitz: no such file")
@@ -19,6 +22,7 @@ var (
 	ErrPageMissing     = errors.New("fitz: page missing")
 	ErrCreatePixmap    = errors.New("fitz: cannot create pixmap")
 	ErrPixmapSamples   = errors.New("fitz: cannot get pixmap samples")
+	ErrPixmapTooLarge  = errors.New("fitz: rendered page image too large")
 	ErrNeedsPassword   = errors.New("fitz: document needs password")
 	ErrLoadOutline     = errors.New("fitz: cannot load outline")
 )
@@ -47,6 +51,18 @@ type Outline struct {
 // Link type.
 type Link struct {
 	URI string
+}
+
+// pixmapSampleBytes returns the byte length of a tight-packed RGBA pixmap sample buffer.
+func pixmapSampleBytes(width, height int) (int, error) {
+	if width <= 0 || height <= 0 {
+		return 0, ErrCreatePixmap
+	}
+	n := int64(bytesPerPixelRGBA) * int64(width) * int64(height)
+	if n > int64(int(^uint(0)>>1)) || n > int64(1<<31-1) {
+		return 0, ErrPixmapTooLarge
+	}
+	return int(n), nil
 }
 
 func bytePtrToString(p *byte) string {
