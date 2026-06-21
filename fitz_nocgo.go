@@ -475,7 +475,7 @@ func (f *Document) Metadata() map[string]string {
 	data["creator"] = lookup("info:Creator")
 	data["producer"] = lookup("info:Producer")
 	data["creationDate"] = lookup("info:CreationDate")
-	data["modDate"] = lookup("info:modDate")
+	data["modDate"] = lookup("info:ModDate")
 
 	return data
 }
