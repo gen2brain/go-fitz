@@ -65,7 +65,7 @@ void HEAP_CAT(HEAP_TYPE_NAME,_insert)(fz_context *ctx, HEAP_TYPE_NAME *heap, HEA
 		if (m == 0)
 			m = 32;
 
-		heap->heap = (HEAP_CONTAINER_TYPE *)fz_realloc(ctx, heap->heap, sizeof(*heap->heap) * m);
+		heap->heap = fz_realloc_array(ctx, heap->heap, m, HEAP_CONTAINER_TYPE);
 		heap->max = m;
 	}
 	h = heap->heap;
