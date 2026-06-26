@@ -543,7 +543,7 @@ func (f *Document) Metadata() map[string]string {
 		defer C.free(unsafe.Pointer(ckey))
 
 		buf := make([]byte, 256)
-		C.fz_lookup_metadata(f.ctx, f.doc, ckey, (*C.char)(unsafe.Pointer(&buf[0])), C.int(len(buf)))
+		C.fz_lookup_metadata(f.ctx, f.doc, ckey, (*C.char)(unsafe.Pointer(&buf[0])), C.size_t(len(buf)))
 
 		return string(buf)
 	}

@@ -28,7 +28,7 @@ var MaxStore = 256 << 20
 
 // FzVersion is used for experimental purego implementation, it must be exactly the same as libmupdf shared library version.
 // It is also possible to set `FZ_VERSION` environment variable.
-var FzVersion = "1.24.9"
+var FzVersion = "1.28.0"
 
 // Outline type.
 type Outline struct {

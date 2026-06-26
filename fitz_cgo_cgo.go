@@ -14,5 +14,7 @@ package fitz
 #cgo windows,arm64 LDFLAGS: -L${SRCDIR}/libs -lmupdf_windows_arm64 -lmupdfthird_windows_arm64 -lm -lcomdlg32 -lgdi32
 #cgo darwin,amd64 LDFLAGS: -L${SRCDIR}/libs -lmupdf_darwin_amd64 -lmupdfthird_darwin_amd64 -lm
 #cgo darwin,arm64 LDFLAGS: -L${SRCDIR}/libs -lmupdf_darwin_arm64 -lmupdfthird_darwin_arm64 -lm
+#cgo haiku,amd64 LDFLAGS: -L${SRCDIR}/libs -lmupdf_haiku_amd64 -lmupdfthird_haiku_amd64
+#cgo haiku,arm64 LDFLAGS: -L${SRCDIR}/libs -lmupdf_haiku_arm64 -lmupdfthird_haiku_arm64
 */
 import "C"
