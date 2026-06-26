@@ -46,6 +46,8 @@ func New(filename string) (f *Document, err error) {
 		return
 	}
 
+	silenceWarnings(f.ctx)
+
 	fzRegisterDocumentHandlers(f.ctx)
 
 	f.doc = fzOpenDocument(f.ctx, filename)
@@ -75,6 +77,8 @@ func NewFromMemory(b []byte) (f *Document, err error) {
 		err = ErrCreateContext
 		return
 	}
+
+	silenceWarnings(f.ctx)
 
 	fzRegisterDocumentHandlers(f.ctx)
 
@@ -559,7 +563,15 @@ var (
 	fzPrintStextPageAsHTML     func(ctx *fzContext, out *fzOutput, page *fzStextPage, id int)
 	fzPrintStextHeaderAsHTML   func(ctx *fzContext, out *fzOutput)
 	fzPrintStextTrailerAsHTML  func(ctx *fzContext, out *fzOutput)
+	fzSetWarningCallback       func(ctx *fzContext, cb uintptr, user *byte)
+
+	silentWarning uintptr
 )
+
+// silenceWarnings installs a no-op warning callback, suppressing MuPDF's stderr warnings.
+func silenceWarnings(ctx *fzContext) {
+	fzSetWarningCallback(ctx, silentWarning, nil)
+}
 
 func init() {
 	libmupdf = loadLibrary()
@@ -569,6 +581,9 @@ func init() {
 	}
 
 	registerStructFuncs(libmupdf)
+
+	purego.RegisterLibFunc(&fzSetWarningCallback, libmupdf, "fz_set_warning_callback")
+	silentWarning = purego.NewCallback(func(user *byte, message *byte) {})
 
 	purego.RegisterLibFunc(&fzNewSvgDevice, libmupdf, "fz_new_svg_device")
 	purego.RegisterLibFunc(&fzNewContextImp, libmupdf, "fz_new_context_imp")

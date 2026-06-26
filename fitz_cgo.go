@@ -62,6 +62,12 @@ int run_page_contents(fz_context *ctx, fz_page *page, fz_device *dev, fz_matrix 
 
 	return 1;
 }
+
+static void silent_warning(void *user, const char *message) {}
+
+void silence_warnings(fz_context *ctx) {
+	fz_set_warning_callback(ctx, silent_warning, NULL);
+}
 */
 import "C"
 
@@ -103,6 +109,8 @@ func New(filename string) (f *Document, err error) {
 		return
 	}
 
+	C.silence_warnings(f.ctx)
+
 	C.fz_register_document_handlers(f.ctx)
 
 	cfilename := C.CString(filename)
@@ -135,6 +143,8 @@ func NewFromMemory(b []byte) (f *Document, err error) {
 		err = ErrCreateContext
 		return
 	}
+
+	C.silence_warnings(f.ctx)
 
 	C.fz_register_document_handlers(f.ctx)
 
