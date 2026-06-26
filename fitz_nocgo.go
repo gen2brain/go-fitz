@@ -128,35 +128,43 @@ func (f *Document) NumPage() int {
 	return fzCountPages(f.ctx, f.doc)
 }
 
-// Image returns image for given page number at its native resolution, or at 300
-// DPI when the page has no images to derive a resolution from.
+// Image returns the page at its native resolution (300 DPI if it has no images), cropped to a single full-page image.
 func (f *Document) Image(pageNumber int) (*image.RGBA, error) {
-	dpi := f.nativeDPI(pageNumber)
+	dpi, x0, y0, x1, y1, crop := f.pageInfo(pageNumber)
 	if dpi <= 0 {
 		dpi = 300.0
 	}
 
-	return f.ImageDPI(pageNumber, dpi)
+	img, err := f.ImageDPI(pageNumber, dpi)
+	if err != nil {
+		return nil, err
+	}
+
+	if crop {
+		img = cropImage(img, x0, y0, x1, y1, dpi)
+	}
+
+	return img, nil
 }
 
-// nativeDPI returns the highest DPI at which any image on the page is displayed,
-// or 0 when the page has no images.
-func (f *Document) nativeDPI(pageNumber int) float64 {
+// pageInfo returns the native resolution and, for a single full-page image, its bbox (points) with crop=true.
+func (f *Document) pageInfo(pageNumber int) (dpi, x0, y0, x1, y1 float64, crop bool) {
 	f.mtx.Lock()
 	defer f.mtx.Unlock()
 
 	if pageNumber >= f.NumPage() {
-		return 0
+		return
 	}
 
 	page := fzLoadPage(f.ctx, f.doc, pageNumber)
 	if page == nil {
-		return 0
+		return
 	}
 
 	defer fzDropPage(f.ctx, page)
 
 	bounds := boundPage(f.ctx, page)
+	parea := float64((bounds.X1 - bounds.X0) * (bounds.Y1 - bounds.Y0))
 
 	text := newStextPage(f.ctx, bounds)
 	defer fzDropStextPage(f.ctx, text)
@@ -171,8 +179,15 @@ func (f *Document) nativeDPI(pageNumber int) float64 {
 	fzCloseDevice(f.ctx, device)
 	fzDropDevice(f.ctx, device)
 
-	var dpi float64
+	var barea float64
+	var box fzRect
+	hasText := false
+
 	for blk := text.FirstBlock; blk != nil; blk = blk.Next {
+		if blk.Type == fzStextBlockText {
+			hasText = true
+			continue
+		}
 		if blk.Type != fzStextBlockImage {
 			continue
 		}
@@ -190,9 +205,15 @@ func (f *Document) nativeDPI(pageNumber int) float64 {
 				dpi = d
 			}
 		}
+		if bw*bh > barea {
+			barea = bw * bh
+			box = blk.Bbox
+		}
 	}
 
-	return dpi
+	crop = !hasText && parea > 0 && barea >= 0.5*parea
+
+	return dpi, float64(box.X0), float64(box.Y0), float64(box.X1), float64(box.Y1), crop
 }
 
 // ImageDPI returns image for given page number and DPI.
@@ -859,6 +880,7 @@ const (
 	fzNoCache             = 2
 	fzStextPreserveImages = 4
 	fzSvgTextAsPath       = 0
+	fzStextBlockText      = 0
 	fzStextBlockImage     = 1
 )
 

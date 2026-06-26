@@ -4,6 +4,8 @@ package fitz
 
 import (
 	"errors"
+	"image"
+	"math"
 	"unsafe"
 )
 
@@ -64,4 +66,24 @@ func bytePtrToString(p *byte) string {
 	}
 
 	return string(unsafe.Slice(p, n))
+}
+
+// cropImage returns the img region at point rectangle (x0,y0)-(x1,y1) scaled to dpi, at origin (0,0).
+func cropImage(img *image.RGBA, x0, y0, x1, y1, dpi float64) *image.RGBA {
+	s := dpi / 72
+
+	r := image.Rect(int(math.Round(x0*s)), int(math.Round(y0*s)), int(math.Round(x1*s)), int(math.Round(y1*s)))
+	r = r.Intersect(img.Bounds())
+	if r.Empty() {
+		return img
+	}
+
+	out := image.NewRGBA(image.Rect(0, 0, r.Dx(), r.Dy()))
+	for y := 0; y < r.Dy(); y++ {
+		so := img.PixOffset(r.Min.X, r.Min.Y+y)
+		do := out.PixOffset(0, y)
+		copy(out.Pix[do:do+r.Dx()*4], img.Pix[so:so+r.Dx()*4])
+	}
+
+	return out
 }

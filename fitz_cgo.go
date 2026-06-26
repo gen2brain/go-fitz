@@ -69,15 +69,17 @@ void silence_warnings(fz_context *ctx) {
 	fz_set_warning_callback(ctx, silent_warning, NULL);
 }
 
-// native_dpi returns the highest DPI at which any image on the page is displayed
-// (image pixels / display size), or 0 when the page has no images.
-double native_dpi(fz_context *ctx, fz_page *page) {
+// page_info sets *dpi to the page's native image resolution; for a single full-page image with no text it also sets *box and returns 1.
+int page_info(fz_context *ctx, fz_page *page, double *dpi, fz_rect *box) {
 	fz_rect b = fz_bound_page(ctx, page);
+	double parea = (b.x1 - b.x0) * (b.y1 - b.y0);
 	fz_stext_page *text = fz_new_stext_page(ctx, b);
 	fz_stext_options opts = {0};
 	opts.flags = FZ_STEXT_PRESERVE_IMAGES;
 
-	double dpi = 0;
+	double nd = 0, barea = 0;
+	int has_text = 0;
+	fz_rect bb = fz_empty_rect;
 
 	fz_try(ctx) {
 		fz_device *dev = fz_new_stext_device(ctx, text, &opts);
@@ -86,23 +88,36 @@ double native_dpi(fz_context *ctx, fz_page *page) {
 		fz_drop_device(ctx, dev);
 
 		for (fz_stext_block *blk = text->first_block; blk; blk = blk->next) {
+			if (blk->type == FZ_STEXT_BLOCK_TEXT) {
+				has_text = 1;
+				continue;
+			}
 			if (blk->type != FZ_STEXT_BLOCK_IMAGE)
 				continue;
 			fz_image *img = blk->u.i.image;
 			double bw = blk->bbox.x1 - blk->bbox.x0;
 			double bh = blk->bbox.y1 - blk->bbox.y0;
-			if (bw > 0 && img->w * 72.0 / bw > dpi)
-				dpi = img->w * 72.0 / bw;
-			if (bh > 0 && img->h * 72.0 / bh > dpi)
-				dpi = img->h * 72.0 / bh;
+			if (bw > 0 && img->w * 72.0 / bw > nd)
+				nd = img->w * 72.0 / bw;
+			if (bh > 0 && img->h * 72.0 / bh > nd)
+				nd = img->h * 72.0 / bh;
+			if (bw * bh > barea) {
+				barea = bw * bh;
+				bb = blk->bbox;
+			}
 		}
 	}
 	fz_always(ctx)
 		fz_drop_stext_page(ctx, text);
-	fz_catch(ctx)
-		dpi = 0;
+	fz_catch(ctx) {
+		nd = 0;
+		has_text = 1;
+	}
 
-	return dpi;
+	*dpi = nd;
+	*box = bb;
+
+	return (!has_text && parea > 0 && barea >= 0.5 * parea) ? 1 : 0;
 }
 */
 import "C"
@@ -233,34 +248,46 @@ func (f *Document) NumPage() int {
 	return int(C.fz_count_pages(f.ctx, f.doc))
 }
 
-// Image returns image for given page number at its native resolution, or at 300
-// DPI when the page has no images to derive a resolution from.
+// Image returns the page at its native resolution (300 DPI if it has no images), cropped to a single full-page image.
 func (f *Document) Image(pageNumber int) (*image.RGBA, error) {
-	dpi := f.nativeDPI(pageNumber)
+	dpi, x0, y0, x1, y1, crop := f.pageInfo(pageNumber)
 	if dpi <= 0 {
 		dpi = 300.0
 	}
 
-	return f.ImageDPI(pageNumber, dpi)
+	img, err := f.ImageDPI(pageNumber, dpi)
+	if err != nil {
+		return nil, err
+	}
+
+	if crop {
+		img = cropImage(img, x0, y0, x1, y1, dpi)
+	}
+
+	return img, nil
 }
 
-// nativeDPI returns the page's native rendering resolution, or 0 if unknown.
-func (f *Document) nativeDPI(pageNumber int) float64 {
+// pageInfo returns the native resolution and, for a single full-page image, its bbox (points) with crop=true.
+func (f *Document) pageInfo(pageNumber int) (dpi, x0, y0, x1, y1 float64, crop bool) {
 	f.mtx.Lock()
 	defer f.mtx.Unlock()
 
 	if pageNumber >= f.NumPage() {
-		return 0
+		return
 	}
 
 	page := C.load_page(f.ctx, f.doc, C.int(pageNumber))
 	if page == nil {
-		return 0
+		return
 	}
 
 	defer C.fz_drop_page(f.ctx, page)
 
-	return float64(C.native_dpi(f.ctx, page))
+	var cdpi C.double
+	var box C.fz_rect
+	c := C.page_info(f.ctx, page, &cdpi, &box)
+
+	return float64(cdpi), float64(box.x0), float64(box.y0), float64(box.x1), float64(box.y1), c != 0
 }
 
 // ImageDPI returns image for given page number and DPI.
