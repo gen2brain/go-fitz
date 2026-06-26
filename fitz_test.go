@@ -8,6 +8,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"sync"
 	"testing"
 
 	"github.com/gen2brain/go-fitz"
@@ -317,3 +318,47 @@ func TestEmptyBytes(t *testing.T) {
 type emptyReader struct{}
 
 func (emptyReader) Read([]byte) (int, error) { return 0, io.EOF }
+
+func TestConcurrent(t *testing.T) {
+	b, err := os.ReadFile(filepath.Join("testdata", "test.pdf"))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	const workers = 8
+	const iters = 20
+
+	var wg sync.WaitGroup
+	errs := make(chan error, workers*iters)
+
+	for w := 0; w < workers; w++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for i := 0; i < iters; i++ {
+				doc, err := fitz.NewFromMemory(b)
+				if err != nil {
+					errs <- err
+					return
+				}
+				if _, err := doc.ImageDPI(0, 200); err != nil {
+					doc.Close()
+					errs <- err
+					return
+				}
+				if _, err := doc.Text(0); err != nil {
+					doc.Close()
+					errs <- err
+					return
+				}
+				doc.Close()
+			}
+		}()
+	}
+
+	wg.Wait()
+	close(errs)
+	for err := range errs {
+		t.Error(err)
+	}
+}
