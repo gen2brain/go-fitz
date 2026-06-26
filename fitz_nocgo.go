@@ -5,6 +5,7 @@ package fitz
 import (
 	"image"
 	"io"
+	"math"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -14,7 +15,6 @@ import (
 	"unsafe"
 
 	"github.com/ebitengine/purego"
-	"github.com/jupiterrider/ffi"
 )
 
 // Document represents fitz document.
@@ -520,16 +520,7 @@ func (f *Document) Close() error {
 var (
 	libmupdf uintptr
 
-	fzBoundPage                *bundle
-	fzTransformRect            *bundle
-	fzRoundRect                *bundle
-	fzScale                    *bundle
-	fzNewDrawDevice            *bundle
-	fzRunPageContents          *bundle
-	fzNewBufferFromPixmapAsPNG *bundle
-	fzNewStextPage             *bundle
-	fzNewSvgDevice             *bundle
-
+	fzNewSvgDevice             func(ctx *fzContext, out *fzOutput, pageWidth, pageHeight float32, textFormat, reuseImages int) *fzDevice
 	fzNewContextImp            func(alloc *fzAllocContext, locks *fzLocksContext, maxStore uint64, version string) *fzContext
 	fzDropContext              func(ctx *fzContext)
 	fzOpenDocument             func(ctx *fzContext, filename string) *fzDocument
@@ -577,16 +568,9 @@ func init() {
 		FzVersion = os.Getenv("FZ_VERSION")
 	}
 
-	fzBoundPage = newBundle("fz_bound_page", &typeFzRect, &ffi.TypePointer, &ffi.TypePointer)
-	fzTransformRect = newBundle("fz_transform_rect", &typeFzRect, &typeFzRect, &typeFzMatrix)
-	fzRoundRect = newBundle("fz_round_rect", &typeFzIRect, &typeFzRect)
-	fzScale = newBundle("fz_scale", &typeFzMatrix, &ffi.TypeFloat, &ffi.TypeFloat)
-	fzNewDrawDevice = newBundle("fz_new_draw_device", &ffi.TypePointer, &ffi.TypePointer, &typeFzMatrix, &ffi.TypePointer)
-	fzRunPageContents = newBundle("fz_run_page_contents", &ffi.TypeVoid, &ffi.TypePointer, &ffi.TypePointer, &ffi.TypePointer, &typeFzMatrix, &ffi.TypePointer)
-	fzNewBufferFromPixmapAsPNG = newBundle("fz_new_buffer_from_pixmap_as_png", &ffi.TypePointer, &ffi.TypePointer, &ffi.TypePointer, &typeFzColorParams)
-	fzNewStextPage = newBundle("fz_new_stext_page", &ffi.TypePointer, &ffi.TypePointer, &typeFzRect)
-	fzNewSvgDevice = newBundle("fz_new_svg_device", &ffi.TypePointer, &ffi.TypePointer, &ffi.TypePointer, &ffi.TypeFloat, &ffi.TypeFloat, &ffi.TypeSint32, &ffi.TypeSint32)
+	registerStructFuncs(libmupdf)
 
+	purego.RegisterLibFunc(&fzNewSvgDevice, libmupdf, "fz_new_svg_device")
 	purego.RegisterLibFunc(&fzNewContextImp, libmupdf, "fz_new_context_imp")
 	purego.RegisterLibFunc(&fzDropContext, libmupdf, "fz_drop_context")
 	purego.RegisterLibFunc(&fzOpenDocument, libmupdf, "fz_open_document")
@@ -635,8 +619,7 @@ func init() {
 // libVersionRe matches the library version in fz_new_context_imp's mismatch message.
 var libVersionRe = regexp.MustCompile(`library \(([0-9]+\.[0-9]+\.[0-9]+)\)`)
 
-// version determines the libmupdf build version needed by fz_new_context_imp:
-// it tries FzVersion, then the version from the mismatch message, then a scan.
+// version finds the libmupdf build version fz_new_context_imp needs: FzVersion, then the mismatch message, then a scan.
 func version() string {
 	var ok bool
 	out := captureStderr(func() { ok = probeVersion(FzVersion) })
@@ -697,91 +680,102 @@ func scanVersion() string {
 	return ""
 }
 
-type bundle struct {
-	sym uintptr
-	cif ffi.Cif
+// scale ports fz_scale.
+func scale(sx, sy float32) fzMatrix {
+	return fzMatrix{A: sx, D: sy}
 }
 
-func (b *bundle) call(rValue unsafe.Pointer, aValues ...unsafe.Pointer) {
-	ffi.Call(&b.cif, b.sym, rValue, aValues...)
-}
-
-func newBundle(name string, rType *ffi.Type, aTypes ...*ffi.Type) *bundle {
-	b := new(bundle)
-	b.sym = procAddress(libmupdf, name)
-
-	nArgs := uint32(len(aTypes))
-
-	if status := ffi.PrepCif(&b.cif, ffi.DefaultAbi, nArgs, rType, aTypes...); status != ffi.OK {
-		panic(status)
+// transformRect ports fz_transform_rect.
+func transformRect(r fzRect, m fzMatrix) fzRect {
+	if isInfiniteRect(r) {
+		return r
 	}
 
-	return b
+	const eps = 1.19209290e-07 // FLT_EPSILON
+
+	if absF32(m.B) < eps && absF32(m.C) < eps {
+		if m.A < 0 {
+			r.X0, r.X1 = r.X1, r.X0
+		}
+		if m.D < 0 {
+			r.Y0, r.Y1 = r.Y1, r.Y0
+		}
+		r.X0, r.Y0 = transformPointXY(r.X0, r.Y0, m)
+		r.X1, r.Y1 = transformPointXY(r.X1, r.Y1, m)
+
+		return r
+	} else if absF32(m.A) < eps && absF32(m.D) < eps {
+		if m.B < 0 {
+			r.X0, r.X1 = r.X1, r.X0
+		}
+		if m.C < 0 {
+			r.Y0, r.Y1 = r.Y1, r.Y0
+		}
+		r.X0, r.Y0 = transformPointXY(r.X0, r.Y0, m)
+		r.X1, r.Y1 = transformPointXY(r.X1, r.Y1, m)
+
+		return r
+	}
+
+	invalid := r.X0 > r.X1 || r.Y0 > r.Y1
+	sx, sy := transformPointXY(r.X0, r.Y0, m)
+	tx, ty := transformPointXY(r.X0, r.Y1, m)
+	ux, uy := transformPointXY(r.X1, r.Y1, m)
+	vx, vy := transformPointXY(r.X1, r.Y0, m)
+	r.X0, r.X1 = min(sx, tx, ux, vx), max(sx, tx, ux, vx)
+	r.Y0, r.Y1 = min(sy, ty, uy, vy), max(sy, ty, uy, vy)
+
+	if invalid {
+		r.X0, r.X1 = r.X1, r.X0
+		r.Y0, r.Y1 = r.Y1, r.Y0
+	}
+
+	return r
 }
 
-var typeFzRect = ffi.Type{Type: ffi.Struct, Elements: &[]*ffi.Type{&ffi.TypeFloat, &ffi.TypeFloat, &ffi.TypeFloat, &ffi.TypeFloat, nil}[0]}
-var typeFzIRect = ffi.Type{Type: ffi.Struct, Elements: &[]*ffi.Type{&ffi.TypeSint32, &ffi.TypeSint32, &ffi.TypeSint32, &ffi.TypeSint32, nil}[0]}
-var typeFzMatrix = ffi.Type{Type: ffi.Struct, Elements: &[]*ffi.Type{&ffi.TypeFloat, &ffi.TypeFloat, &ffi.TypeFloat, &ffi.TypeFloat, &ffi.TypeFloat, &ffi.TypeFloat, nil}[0]}
-var typeFzColorParams = ffi.Type{Type: ffi.Struct, Elements: &[]*ffi.Type{&ffi.TypeUint8, &ffi.TypeUint8, &ffi.TypeUint8, &ffi.TypeUint8, nil}[0]}
+// roundRect ports fz_round_rect.
+func roundRect(r fzRect) fzIRect {
+	const minSafe, maxSafe = -16777216, 16777216
 
-func boundPage(ctx *fzContext, page *fzPage) fzRect {
-	var ret fzRect
-	fzBoundPage.call(unsafe.Pointer(&ret), unsafe.Pointer(&ctx), unsafe.Pointer(&page))
+	clamp := func(f float64) int32 {
+		switch {
+		case f < minSafe:
+			return minSafe
+		case f > maxSafe:
+			return maxSafe
+		default:
+			return int32(f)
+		}
+	}
 
-	return ret
+	return fzIRect{
+		X0: clamp(math.Floor(float64(r.X0) + 0.001)),
+		Y0: clamp(math.Floor(float64(r.Y0) + 0.001)),
+		X1: clamp(math.Ceil(float64(r.X1) - 0.001)),
+		Y1: clamp(math.Ceil(float64(r.Y1) - 0.001)),
+	}
 }
 
-func transformRect(rect fzRect, m fzMatrix) fzRect {
-	var ret fzRect
-	fzTransformRect.call(unsafe.Pointer(&ret), unsafe.Pointer(&rect), unsafe.Pointer(&m))
-
-	return ret
+func transformPointXY(x, y float32, m fzMatrix) (float32, float32) {
+	return x*m.A + y*m.C + m.E, x*m.B + y*m.D + m.F
 }
 
-func roundRect(rect fzRect) fzIRect {
-	var ret fzIRect
-	fzRoundRect.call(unsafe.Pointer(&ret), unsafe.Pointer(&rect))
+func isInfiniteRect(r fzRect) bool {
+	const minInf, maxInf = -2147483648, 0x7fffff80
 
-	return ret
+	return r.X0 == minInf && r.X1 == maxInf && r.Y0 == minInf && r.Y1 == maxInf
 }
 
-func scale(sx, sy float32) fzMatrix {
-	var ret fzMatrix
-	fzScale.call(unsafe.Pointer(&ret), unsafe.Pointer(&sx), unsafe.Pointer(&sy))
+func absF32(x float32) float32 {
+	if x < 0 {
+		return -x
+	}
 
-	return ret
-}
-
-func newDrawDevice(ctx *fzContext, transform fzMatrix, dest *fzPixmap) *fzDevice {
-	var ret *fzDevice
-	fzNewDrawDevice.call(unsafe.Pointer(&ret), unsafe.Pointer(&ctx), unsafe.Pointer(&transform), unsafe.Pointer(&dest))
-
-	return ret
-}
-
-func runPageContents(ctx *fzContext, page *fzPage, dev *fzDevice, transform fzMatrix) {
-	var cookie fzCookie
-	fzRunPageContents.call(nil, unsafe.Pointer(&ctx), unsafe.Pointer(&page), unsafe.Pointer(&dev), unsafe.Pointer(&transform), unsafe.Pointer(&cookie))
-}
-
-func newBufferFromPixmapAsPNG(ctx *fzContext, pix *fzPixmap, params fzColorParams) *fzBuffer {
-	var ret *fzBuffer
-	fzNewBufferFromPixmapAsPNG.call(unsafe.Pointer(&ret), unsafe.Pointer(&ctx), unsafe.Pointer(&pix), unsafe.Pointer(&params))
-
-	return ret
-}
-func newStextPage(ctx *fzContext, mediabox fzRect) *fzStextPage {
-	var ret *fzStextPage
-	fzNewStextPage.call(unsafe.Pointer(&ret), unsafe.Pointer(&ctx), unsafe.Pointer(&mediabox))
-
-	return ret
+	return x
 }
 
 func newSvgDevice(ctx *fzContext, out *fzOutput, pageWidth, pageHeight float32, textFormat, reuseImages int) *fzDevice {
-	var ret *fzDevice
-	fzNewSvgDevice.call(unsafe.Pointer(&ret), unsafe.Pointer(&ctx), unsafe.Pointer(&out), unsafe.Pointer(&pageWidth), unsafe.Pointer(&pageHeight), unsafe.Pointer(&textFormat), unsafe.Pointer(&reuseImages))
-
-	return ret
+	return fzNewSvgDevice(ctx, out, pageWidth, pageHeight, textFormat, reuseImages)
 }
 
 const (

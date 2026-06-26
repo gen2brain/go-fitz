@@ -11,8 +11,7 @@ import (
 	"golang.org/x/sys/unix"
 )
 
-// captureStderr redirects fd 2 (where the MuPDF C runtime writes) into a buffer
-// while fn runs, then restores it and returns what was written.
+// captureStderr runs fn with fd 2 (the C runtime's stderr) redirected into the returned buffer.
 func captureStderr(fn func()) string {
 	saved, err := unix.Dup(syscall.Stderr)
 	if err != nil {

@@ -1,4 +1,4 @@
-//go:build (!cgo || nocgo) && !unix
+//go:build (!cgo || nocgo) && !unix && !windows
 
 package fitz
 
