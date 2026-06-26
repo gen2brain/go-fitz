@@ -11,7 +11,7 @@ package fitz
 #cgo linux,!android,arm64,musl LDFLAGS: -L${SRCDIR}/libs -lmupdf_linux_arm64_musl -lmupdfthird_linux_arm64_musl -lm
 #cgo android,arm64 LDFLAGS: -L${SRCDIR}/libs -lmupdf_android_arm64 -lmupdfthird_android_arm64 -lm -llog
 #cgo android,amd64 LDFLAGS: -L${SRCDIR}/libs -lmupdf_android_amd64 -lmupdfthird_android_amd64 -lm -llog
-#cgo windows,amd64 LDFLAGS: -L${SRCDIR}/libs -lmupdf_windows_amd64 -lmupdfthird_windows_amd64 -lm -lcomdlg32 -lgdi32
+#cgo windows,amd64 LDFLAGS: -L${SRCDIR}/libs -lmupdf_windows_amd64 -lmupdfthird_windows_amd64 -lucrt -lm -lcomdlg32 -lgdi32
 #cgo windows,arm64 LDFLAGS: -L${SRCDIR}/libs -lmupdf_windows_arm64 -lmupdfthird_windows_arm64 -lm -lcomdlg32 -lgdi32
 #cgo darwin,amd64 LDFLAGS: -L${SRCDIR}/libs -lmupdf_darwin_amd64 -lmupdfthird_darwin_amd64 -lm
 #cgo darwin,arm64 LDFLAGS: -L${SRCDIR}/libs -lmupdf_darwin_arm64 -lmupdfthird_darwin_arm64 -lm
