@@ -7,6 +7,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strconv"
 	"strings"
 	"sync"
@@ -631,22 +632,65 @@ func init() {
 	}
 }
 
+// libVersionRe matches the library version in fz_new_context_imp's mismatch message.
+var libVersionRe = regexp.MustCompile(`library \(([0-9]+\.[0-9]+\.[0-9]+)\)`)
+
+// version determines the libmupdf build version needed by fz_new_context_imp:
+// it tries FzVersion, then the version from the mismatch message, then a scan.
 func version() string {
-	if fzNewContextImp(nil, nil, uint64(MaxStore), FzVersion) != nil {
+	var ok bool
+	out := captureStderr(func() { ok = probeVersion(FzVersion) })
+	if ok {
 		return FzVersion
 	}
 
-	s := strings.Split(FzVersion, ".")
-	v := strings.Join(s[:len(s)-1], ".")
-
-	for x := 10; x >= 0; x-- {
-		ver := v + "." + strconv.Itoa(x)
-		if ver == FzVersion {
-			continue
+	if m := libVersionRe.FindStringSubmatch(out); m != nil && m[1] != FzVersion {
+		captureStderr(func() { ok = probeVersion(m[1]) })
+		if ok {
+			return m[1]
 		}
+	}
 
-		if fzNewContextImp(nil, nil, uint64(MaxStore), ver) != nil {
-			return ver
+	var found string
+	captureStderr(func() { found = scanVersion() })
+
+	return found
+}
+
+// probeVersion reports whether ver is the libmupdf build version.
+func probeVersion(ver string) bool {
+	ctx := fzNewContextImp(nil, nil, uint64(MaxStore), ver)
+	if ctx == nil {
+		return false
+	}
+
+	fzDropContext(ctx)
+
+	return true
+}
+
+// scanVersion brute-forces minor/patch combinations around FzVersion as a fallback.
+func scanVersion() string {
+	s := strings.Split(FzVersion, ".")
+	if len(s) != 3 {
+		return ""
+	}
+
+	minor, err := strconv.Atoi(s[1])
+	if err != nil {
+		return ""
+	}
+
+	for m := minor + 2; m >= 0; m-- {
+		for p := 12; p >= 0; p-- {
+			ver := s[0] + "." + strconv.Itoa(m) + "." + strconv.Itoa(p)
+			if ver == FzVersion {
+				continue
+			}
+
+			if probeVersion(ver) {
+				return ver
+			}
 		}
 	}
 
