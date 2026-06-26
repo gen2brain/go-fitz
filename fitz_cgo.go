@@ -68,6 +68,42 @@ static void silent_warning(void *user, const char *message) {}
 void silence_warnings(fz_context *ctx) {
 	fz_set_warning_callback(ctx, silent_warning, NULL);
 }
+
+// native_dpi returns the highest DPI at which any image on the page is displayed
+// (image pixels / display size), or 0 when the page has no images.
+double native_dpi(fz_context *ctx, fz_page *page) {
+	fz_rect b = fz_bound_page(ctx, page);
+	fz_stext_page *text = fz_new_stext_page(ctx, b);
+	fz_stext_options opts = {0};
+	opts.flags = FZ_STEXT_PRESERVE_IMAGES;
+
+	double dpi = 0;
+
+	fz_try(ctx) {
+		fz_device *dev = fz_new_stext_device(ctx, text, &opts);
+		fz_run_page(ctx, page, dev, fz_identity, NULL);
+		fz_close_device(ctx, dev);
+		fz_drop_device(ctx, dev);
+
+		for (fz_stext_block *blk = text->first_block; blk; blk = blk->next) {
+			if (blk->type != FZ_STEXT_BLOCK_IMAGE)
+				continue;
+			fz_image *img = blk->u.i.image;
+			double bw = blk->bbox.x1 - blk->bbox.x0;
+			double bh = blk->bbox.y1 - blk->bbox.y0;
+			if (bw > 0 && img->w * 72.0 / bw > dpi)
+				dpi = img->w * 72.0 / bw;
+			if (bh > 0 && img->h * 72.0 / bh > dpi)
+				dpi = img->h * 72.0 / bh;
+		}
+	}
+	fz_always(ctx)
+		fz_drop_stext_page(ctx, text);
+	fz_catch(ctx)
+		dpi = 0;
+
+	return dpi;
+}
 */
 import "C"
 
@@ -197,9 +233,34 @@ func (f *Document) NumPage() int {
 	return int(C.fz_count_pages(f.ctx, f.doc))
 }
 
-// Image returns image for given page number.
+// Image returns image for given page number at its native resolution, or at 300
+// DPI when the page has no images to derive a resolution from.
 func (f *Document) Image(pageNumber int) (*image.RGBA, error) {
-	return f.ImageDPI(pageNumber, 300.0)
+	dpi := f.nativeDPI(pageNumber)
+	if dpi <= 0 {
+		dpi = 300.0
+	}
+
+	return f.ImageDPI(pageNumber, dpi)
+}
+
+// nativeDPI returns the page's native rendering resolution, or 0 if unknown.
+func (f *Document) nativeDPI(pageNumber int) float64 {
+	f.mtx.Lock()
+	defer f.mtx.Unlock()
+
+	if pageNumber >= f.NumPage() {
+		return 0
+	}
+
+	page := C.load_page(f.ctx, f.doc, C.int(pageNumber))
+	if page == nil {
+		return 0
+	}
+
+	defer C.fz_drop_page(f.ctx, page)
+
+	return float64(C.native_dpi(f.ctx, page))
 }
 
 // ImageDPI returns image for given page number and DPI.

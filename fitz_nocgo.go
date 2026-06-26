@@ -128,9 +128,71 @@ func (f *Document) NumPage() int {
 	return fzCountPages(f.ctx, f.doc)
 }
 
-// Image returns image for given page number.
+// Image returns image for given page number at its native resolution, or at 300
+// DPI when the page has no images to derive a resolution from.
 func (f *Document) Image(pageNumber int) (*image.RGBA, error) {
-	return f.ImageDPI(pageNumber, 300.0)
+	dpi := f.nativeDPI(pageNumber)
+	if dpi <= 0 {
+		dpi = 300.0
+	}
+
+	return f.ImageDPI(pageNumber, dpi)
+}
+
+// nativeDPI returns the highest DPI at which any image on the page is displayed,
+// or 0 when the page has no images.
+func (f *Document) nativeDPI(pageNumber int) float64 {
+	f.mtx.Lock()
+	defer f.mtx.Unlock()
+
+	if pageNumber >= f.NumPage() {
+		return 0
+	}
+
+	page := fzLoadPage(f.ctx, f.doc, pageNumber)
+	if page == nil {
+		return 0
+	}
+
+	defer fzDropPage(f.ctx, page)
+
+	bounds := boundPage(f.ctx, page)
+
+	text := newStextPage(f.ctx, bounds)
+	defer fzDropStextPage(f.ctx, text)
+
+	var opts fzStextOptions
+	opts.Flags = fzStextPreserveImages
+
+	device := fzNewStextDevice(f.ctx, text, &opts)
+	fzEnableDeviceHints(f.ctx, device, fzNoCache)
+
+	runPageContents(f.ctx, page, device, fzIdentity)
+	fzCloseDevice(f.ctx, device)
+	fzDropDevice(f.ctx, device)
+
+	var dpi float64
+	for blk := text.FirstBlock; blk != nil; blk = blk.Next {
+		if blk.Type != fzStextBlockImage {
+			continue
+		}
+
+		img := *(**fzImage)(unsafe.Pointer(&blk.U[24]))
+		bw := float64(blk.Bbox.X1 - blk.Bbox.X0)
+		bh := float64(blk.Bbox.Y1 - blk.Bbox.Y0)
+		if bw > 0 {
+			if d := float64(img.W) * 72.0 / bw; d > dpi {
+				dpi = d
+			}
+		}
+		if bh > 0 {
+			if d := float64(img.H) * 72.0 / bh; d > dpi {
+				dpi = d
+			}
+		}
+	}
+
+	return dpi
 }
 
 // ImageDPI returns image for given page number and DPI.
@@ -797,6 +859,7 @@ const (
 	fzNoCache             = 2
 	fzStextPreserveImages = 4
 	fzSvgTextAsPath       = 0
+	fzStextBlockImage     = 1
 )
 
 var fzIdentity = fzMatrix{A: 1, B: 0, C: 0, D: 1, E: 0, F: 0}
@@ -1063,6 +1126,8 @@ type fzLink struct {
 }
 
 type fzStextPage struct {
+	Refs       int32
+	_          [4]byte
 	Pool       *fzPool
 	Mediabox   fzRect
 	FirstBlock *fzStextBlock
@@ -1076,11 +1141,17 @@ type fzStextOptions struct {
 
 type fzStextBlock struct {
 	Type int32
+	Id   int32
 	Bbox fzRect
-	_    [4]byte
 	U    [32]byte
 	Prev *fzStextBlock
 	Next *fzStextBlock
+}
+
+type fzImage struct {
+	_ [32]byte // fz_key_storable
+	W int32
+	H int32
 }
 
 type fzDeviceContainerStack struct {
