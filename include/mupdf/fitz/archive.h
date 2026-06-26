@@ -1,4 +1,4 @@
-// Copyright (C) 2004-2022 Artifex Software, Inc.
+// Copyright (C) 2004-2024 Artifex Software, Inc.
 //
 // This file is part of MuPDF.
 //
@@ -302,6 +302,7 @@ int fz_is_zip_archive(fz_context *ctx, fz_stream *file);
 */
 fz_archive *fz_open_zip_archive(fz_context *ctx, const char *path);
 
+
 /**
 	Open a zip archive stream.
 
@@ -313,6 +314,11 @@ fz_archive *fz_open_zip_archive(fz_context *ctx, const char *path);
 
 */
 fz_archive *fz_open_zip_archive_with_stream(fz_context *ctx, fz_stream *file);
+
+/**
+	Open a zip archive from static data.
+*/
+fz_archive *fz_open_zip_archive_with_memory(fz_context *ctx, const unsigned char *data, size_t size);
 
 /**
 	fz_zip_writer offers methods for creating and writing zip files.

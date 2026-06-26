@@ -1,4 +1,4 @@
-// Copyright (C) 2004-2021 Artifex Software, Inc.
+// Copyright (C) 2004-2025 Artifex Software, Inc.
 //
 // This file is part of MuPDF.
 //
@@ -300,7 +300,7 @@ void fz_clear_pixmap(fz_context *ctx, fz_pixmap *pix);
 void fz_invert_pixmap(fz_context *ctx, fz_pixmap *pix);
 
 /**
-	Invert the alpha fo all the pixels in a pixmap.
+	Invert the alpha of all the pixels in a pixmap.
 */
 void fz_invert_pixmap_alpha(fz_context *ctx, fz_pixmap *pix);
 
@@ -376,6 +376,7 @@ int fz_is_pixmap_monochrome(fz_context *ctx, fz_pixmap *pixmap);
 /* Implementation details: subject to change.*/
 
 fz_pixmap *fz_alpha_from_gray(fz_context *ctx, fz_pixmap *gray);
+fz_pixmap *fz_alpha_from_rgb(fz_context *ctx, fz_pixmap *color);
 void fz_decode_tile(fz_context *ctx, fz_pixmap *pix, const float *decode);
 void fz_md5_pixmap(fz_context *ctx, fz_pixmap *pixmap, unsigned char digest[16]);
 
@@ -458,7 +459,22 @@ enum
  * width/height.
  */
 fz_pixmap *
-fz_warp_pixmap(fz_context *ctx, fz_pixmap *src, const fz_point points[4], int width, int height);
+fz_warp_pixmap(fz_context *ctx, fz_pixmap *src, fz_quad points, int width, int height);
+
+/* As for fz_warp_pixmap, where width/height are automatically 'guessed'. */
+fz_pixmap *
+fz_autowarp_pixmap(fz_context *ctx, fz_pixmap *src, fz_quad points);
+
+/* Search for a "document" within a pixmap (greyscale or rgb, no alpha).
+ *
+ * points should point to an array of 4 fz_points.
+ *
+ * If the function return false, no document was found.
+ * If true, points has been updated to include the corner positions of
+ * the detected document within the src image.
+ */
+int
+fz_detect_document(fz_context *ctx, fz_quad *points, fz_pixmap *src);
 
 /*
 	Convert between different separation results.

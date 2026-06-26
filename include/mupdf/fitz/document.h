@@ -1,4 +1,4 @@
-// Copyright (C) 2004-2023 Artifex Software, Inc.
+// Copyright (C) 2004-2026 Artifex Software, Inc.
 //
 // This file is part of MuPDF.
 //
@@ -32,6 +32,7 @@
 #include "mupdf/fitz/link.h"
 #include "mupdf/fitz/outline.h"
 #include "mupdf/fitz/separation.h"
+#include "mupdf/fitz/archive.h"
 
 typedef struct fz_document_handler fz_document_handler;
 typedef struct fz_page fz_page;
@@ -102,6 +103,19 @@ enum
 	FZ_DEFAULT_LAYOUT_EM = FZ_LAYOUT_A5_EM,
 };
 
+enum
+{
+	FZ_STYLE_NEEDS_DEFAULT = -1,
+	FZ_STYLE_NEEDS_UPDATE = 0,
+	FZ_STYLE_APPLIED = 1,
+};
+
+enum
+{
+	FZ_LAYOUT_NEEDS_UPDATE = 0,
+	FZ_LAYOUT_APPLIED = 1,
+};
+
 typedef enum
 {
 	FZ_PERMISSION_PRINT = 'p',
@@ -159,10 +173,16 @@ typedef fz_outline *(fz_document_load_outline_fn)(fz_context *ctx, fz_document *
 typedef fz_outline_iterator *(fz_document_outline_iterator_fn)(fz_context *ctx, fz_document *doc);
 
 /**
-	Type for a function to be called to lay
-	out a document. See fz_layout_document for more information.
+	Type for a function to be called to to apply stylesheets to a document.
+	See fz_style_document for more information.
 */
-typedef void (fz_document_layout_fn)(fz_context *ctx, fz_document *doc, float w, float h, float em);
+typedef void (fz_document_style_fn)(fz_context *ctx, fz_document *doc);
+
+/**
+	Type for a function to be called to lay out a document.
+	See fz_layout_document for more information.
+*/
+typedef void (fz_document_layout_fn)(fz_context *ctx, fz_document *doc);
 
 /**
 	Type for a function to be called to
@@ -399,7 +419,7 @@ typedef int (fz_document_recognize_content_fn)(fz_context *ctx, const fz_documen
 
 	opaque: The value previously returned by the init call.
 */
-typedef void fz_document_handler_fin_fn(fz_context *ctx, const fz_document_handler *handler);
+typedef void (fz_document_handler_fin_fn)(fz_context *ctx, const fz_document_handler *handler);
 
 
 
@@ -652,6 +672,14 @@ fz_outline_iterator *fz_new_outline_iterator(fz_context *ctx, fz_document *doc);
 int fz_is_document_reflowable(fz_context *ctx, fz_document *doc);
 
 /**
+	Style reflowable document types.
+
+	publisher_css: Whether to respect the publisher's styles or not.
+	user_css: Custom stylesheet to apply.
+*/
+void fz_style_document(fz_context *ctx, fz_document *doc, int publisher_css, const char *user_css);
+
+/**
 	Layout reflowable document types.
 
 	w, h: Page size in points.
@@ -880,14 +908,6 @@ void fz_run_page_widgets(fz_context *ctx, fz_page *page, fz_device *dev, fz_matr
 fz_page *fz_keep_page(fz_context *ctx, fz_page *page);
 
 /**
-	Increment the reference count for the page. Returns the same
-	pointer. Must only be used when the alloc lock is already taken.
-
-	Never throws exceptions.
-*/
-fz_page *fz_keep_page_locked(fz_context *ctx, fz_page *page);
-
-/**
 	Decrements the reference count for the page. When the reference
 	count hits 0, the page and its references are freed.
 
@@ -949,7 +969,7 @@ int fz_has_permission(fz_context *ctx, fz_document *doc, fz_permission p);
 	(will be larger than 'size' if the output was truncated), or -1 if the
 	key is not recognized or found.
 */
-int fz_lookup_metadata(fz_context *ctx, fz_document *doc, const char *key, char *buf, int size);
+int fz_lookup_metadata(fz_context *ctx, fz_document *doc, const char *key, char *buf, size_t size);
 
 #define FZ_META_FORMAT "format"
 #define FZ_META_ENCRYPTION "encryption"
@@ -1004,7 +1024,7 @@ void fz_delete_link(fz_context *ctx, fz_page *page, fz_link *link);
 	Iterates over all opened pages of the document, calling the
 	provided callback for each page for processing. If the callback
 	returns non-NULL then the iteration stops and that value is returned
-	to the called of fz_process_opened_pages().
+	to the caller of fz_process_opened_pages().
 
 	The state pointer provided to fz_process_opened_pages() is
 	passed on to the callback but is owned by the caller.
@@ -1027,6 +1047,7 @@ struct fz_page
 	int chapter; /* chapter number */
 	int number; /* page number in chapter */
 	int incomplete; /* incomplete from progressive loading; don't cache! */
+	int in_doc; /* page has been placed into the document */
 	fz_page_drop_page_fn *drop_page;
 	fz_page_bound_page_fn *bound_page;
 	fz_page_run_page_fn *run_page_contents;
@@ -1064,6 +1085,7 @@ struct fz_document
 	fz_document_has_permission_fn *has_permission;
 	fz_document_load_outline_fn *load_outline;
 	fz_document_outline_iterator_fn *outline_iterator;
+	fz_document_style_fn *style;
 	fz_document_layout_fn *layout;
 	fz_document_make_bookmark_fn *make_bookmark;
 	fz_document_lookup_bookmark_fn *lookup_bookmark;
@@ -1079,8 +1101,18 @@ struct fz_document
 	fz_document_output_accelerator_fn *output_accelerator;
 	fz_document_run_structure_fn *run_structure;
 	fz_document_as_pdf_fn *as_pdf;
-	int did_layout;
+
 	int is_reflowable;
+	int id;
+
+	/* Style options. When these change, both the style and layout methods will be called. */
+	int did_style;
+	int publisher_css;
+	char *user_css;
+
+	/* Layout size. When these change, the layout method will be called. */
+	int did_layout;
+	float layout_w, layout_h, layout_em;
 
 	/* Linked list of currently open pages. These are not
 	 * references, but just a linked list of open pages,

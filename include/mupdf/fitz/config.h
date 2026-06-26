@@ -1,4 +1,4 @@
-// Copyright (C) 2004-2021 Artifex Software, Inc.
+// Copyright (C) 2004-2025 Artifex Software, Inc.
 //
 // This file is part of MuPDF.
 //
@@ -52,7 +52,20 @@
 /* #define FZ_ENABLE_CBZ 1 */
 /* #define FZ_ENABLE_IMG 1 */
 /* #define FZ_ENABLE_HTML 1 */
+/* #define FZ_ENABLE_FB2 1 */
+/* #define FZ_ENABLE_MOBI 1 */
 /* #define FZ_ENABLE_EPUB 1 */
+/* #define FZ_ENABLE_OFFICE 1 */
+/* #define FZ_ENABLE_TXT 1 */
+
+/**
+	Some of those document agents rely on the HTML
+	engine. This will be enabled if required based upon
+	those engines, but can be enabled independently of
+	them so that other features (such as the fz_story
+	mechanism or PDF Annotation rich content) can work.
+*/
+/* #define FZ_ENABLE_HTML_ENGINE 1 */
 
 /**
 	Choose which document writers to include.
@@ -77,11 +90,24 @@
 /* #define FZ_ENABLE_JPX 1 */
 
 /**
+	Choose whether to enable Brotli compression support.
+	By default, it is enabled.
+*/
+/* #define FZ_ENABLE_BROTLI 1 */
+
+/**
 	Choose whether to enable JavaScript.
 	By default JavaScript is enabled both for mutool and PDF
 	interactivity.
 */
 /* #define FZ_ENABLE_JS 1 */
+
+/**
+	Choose whether to enable barcode functionality.
+	It is enabled by default, unless disabled by the build
+	system.
+*/
+/* #define FZ_ENABLE_BARCODE 1 */
 
 /**
 	Choose which fonts to include.
@@ -92,11 +118,11 @@
 	unwanted fonts.
 */
 /* To avoid all noto fonts except CJK, enable: */
-#define TOFU 
+#define TOFU
 
 /* To skip the CJK font, enable: (this implicitly enables TOFU_CJK_EXT
  * and TOFU_CJK_LANG) */
-#define TOFU_CJK 
+#define TOFU_CJK
 
 /* To skip CJK Extension A, enable: (this implicitly enables
  * TOFU_CJK_LANG) */
@@ -121,6 +147,10 @@
 /* #define TOFU_BASE14 */
 /* (You probably really don't want to do that except for measurement
  * purposes!) */
+
+/* Choose which hyphenation patterns to include. */
+/* #define FZ_ENABLE_HYPHEN 1 */
+/* #define FZ_ENABLE_HYPHEN_ALL 1 */
 
 /* ---------- DO NOT EDIT ANYTHING UNDER THIS LINE ---------- */
 
@@ -155,6 +185,14 @@
 #define FZ_PLOTTERS_N 1
 #endif
 
+#ifndef FZ_ENABLE_HYPHEN
+#define FZ_ENABLE_HYPHEN 1
+#endif /* FZ_ENABLE_HYPHEN */
+
+#ifndef FZ_ENABLE_HYPHEN_ALL
+#define FZ_ENABLE_HYPHEN_ALL 1
+#endif /* FZ_ENABLE_HYPHEN_ALL */
+
 #ifndef FZ_ENABLE_PDF
 #define FZ_ENABLE_PDF 1
 #endif /* FZ_ENABLE_PDF */
@@ -179,9 +217,29 @@
 #define FZ_ENABLE_HTML 1
 #endif /* FZ_ENABLE_HTML */
 
+#ifndef FZ_ENABLE_MD
+#define FZ_ENABLE_MD 1
+#endif /* FZ_ENABLE_MD */
+
 #ifndef FZ_ENABLE_EPUB
 #define FZ_ENABLE_EPUB 1
 #endif /* FZ_ENABLE_EPUB */
+
+#ifndef FZ_ENABLE_FB2
+#define FZ_ENABLE_FB2 1
+#endif /* FZ_ENABLE_FB2 */
+
+#ifndef FZ_ENABLE_MOBI
+#define FZ_ENABLE_MOBI 1
+#endif /* FZ_ENABLE_MOBI */
+
+#ifndef FZ_ENABLE_TXT
+#define FZ_ENABLE_TXT 1
+#endif /* FZ_ENABLE_TXT */
+
+#ifndef FZ_ENABLE_OFFICE
+#define FZ_ENABLE_OFFICE 1
+#endif /* FZ_ENABLE_OFFICE */
 
 #ifndef FZ_ENABLE_OCR_OUTPUT
 #define FZ_ENABLE_OCR_OUTPUT 1
@@ -199,6 +257,10 @@
 #define FZ_ENABLE_JPX 1
 #endif /* FZ_ENABLE_JPX */
 
+#ifndef FZ_ENABLE_BROTLI
+#define FZ_ENABLE_BROTLI 1
+#endif /* FZ_ENABLE_BROTLI */
+
 #ifndef FZ_ENABLE_JS
 #define FZ_ENABLE_JS 1
 #endif /* FZ_ENABLE_JS */
@@ -207,16 +269,57 @@
 #define FZ_ENABLE_ICC 1
 #endif /* FZ_ENABLE_ICC */
 
+#ifdef FZ_ENABLE_HTML_ENGINE
+#if FZ_ENABLE_HTML_ENGINE == 0
+#if FZ_ENABLE_HTML == 1
+#error FZ_ENABLE_HTML cannot work without FZ_ENABLE_HTML_ENGINE
+#endif
+#if FZ_ENABLE_EPUB == 1
+#error FZ_ENABLE_EPUB cannot work without FZ_ENABLE_HTML_ENGINE
+#endif
+#if FZ_ENABLE_MOBI == 1
+#error FZ_ENABLE_MOBI cannot work without FZ_ENABLE_HTML_ENGINE
+#endif
+#if FZ_ENABLE_FB2 == 1
+#error FZ_ENABLE_FB2 cannot work without FZ_ENABLE_HTML_ENGINE
+#endif
+#if FZ_ENABLE_TXT == 1
+#error FZ_ENABLE_TXT cannot work without FZ_ENABLE_HTML_ENGINE
+#endif
+#if FZ_ENABLE_OFFICE == 1
+#error FZ_ENABLE_OFFICE cannot work without FZ_ENABLE_HTML_ENGINE
+#endif
+#if FZ_ENABLE_MD == 1
+#error FZ_ENABLE_MD cannot work without FZ_ENABLE_HTML_ENGINE
+#endif
+#endif
+#else
+#if FZ_ENABLE_HTML || FZ_ENABLE_EPUB || FZ_ENABLE_MOBI || FZ_ENABLE_FB2 || FZ_ENABLE_TXT || FZ_ENABLE_OFFICE || FZ_ENABLE_MD
+#define FZ_ENABLE_HTML_ENGINE 1
+#else
+#define FZ_ENABLE_HTML_ENGINE 0
+#endif
+#endif
+
 /* If Epub and HTML are both disabled, disable SIL fonts */
 #if FZ_ENABLE_HTML == 0 && FZ_ENABLE_EPUB == 0
 #undef TOFU_SIL
 #define TOFU_SIL
 #endif
 
+#if FZ_ENABLE_HTML_ENGINE == 0
+#undef FZ_ENABLE_HYPHEN
+#define FZ_ENABLE_HYPHEN 0
+#endif
+
 #if !defined(HAVE_LEPTONICA) || !defined(HAVE_TESSERACT)
 #ifndef OCR_DISABLED
 #define OCR_DISABLED
 #endif
+#endif
+
+#if !defined(FZ_ENABLE_BARCODE)
+#define FZ_ENABLE_BARCODE 1
 #endif
 
 #endif /* FZ_CONFIG_H */

@@ -1,4 +1,4 @@
-// Copyright (C) 2004-2021 Artifex Software, Inc.
+// Copyright (C) 2004-2025 Artifex Software, Inc.
 //
 // This file is part of MuPDF.
 //
@@ -425,6 +425,14 @@ const unsigned char *fz_lookup_noto_emoji_font(fz_context *ctx, int *len);
 const unsigned char *fz_lookup_noto_boxes_font(fz_context *ctx, int *len);
 
 /**
+	Look up the Noto font file name for a given script.
+	From the returned font stem, you can look for Noto fonts on the system in the form:
+		Noto(Sans|Serif)${STEM}-Regular.(otf|ttf)
+*/
+const char *fz_lookup_noto_stem_from_script(fz_context *ctx, int script, int language);
+const char *fz_lookup_script_name(fz_context *ctx, int script, int language);
+
+/**
 	Try to load a fallback font for the
 	given combination of font attributes. Whether a font is
 	present or not will depend on the configuration in which
@@ -733,10 +741,42 @@ void fz_hb_lock(fz_context *ctx);
 */
 void fz_hb_unlock(fz_context *ctx);
 
+/**
+	Callback for use in font cmap enumeration.
+*/
+typedef void (fz_cmap_callback)(fz_context *ctx, void *opaque, unsigned long ucs, unsigned int gid);
+
+/**
+	Enumerate a cmap using a callback.
+*/
+void fz_enumerate_font_cmap(fz_context *ctx, fz_font *font, fz_cmap_callback *cb, void *opaque);
+
+/**
+	Ensure that a font has its ascender/descender values calculated
+	from the actual bbox of the glyphs.
+
+	Note, that we combine the declared values from the font (or the
+	default values if those are not present) with the actual bbox to
+	get the final result. So this can only cause ascender/descender
+	to move further apart!
+*/
+void fz_calculate_font_ascender_descender(fz_context *ctx, fz_font *font);
+
+typedef enum
+{
+	FZ_ASCDESC_FROM_FONT,
+	FZ_ASCDESC_DEFAULT,
+	FZ_ASCDESC_FROM_BOUNDS
+} fz_ascdesc_source;
+
+#define FZ_MAX_TRUSTWORTHY_ASCENT 8
+#define FZ_MAX_TRUSTWORTHY_DESCENT -3
+
 struct fz_font
 {
 	int refs;
 	char name[32];
+	char family[32];
 	fz_buffer *buffer;
 
 	fz_font_flags_t flags;
@@ -751,10 +791,15 @@ struct fz_font
 	float *t3widths; /* has 256 entries if used */
 	unsigned short *t3flags; /* has 256 entries if used */
 	void *t3doc; /* a pdf_document for the callback */
-	void (*t3run)(fz_context *ctx, void *doc, void *resources, fz_buffer *contents, struct fz_device *dev, fz_matrix ctm, void *gstate, fz_default_colorspaces *default_cs);
+	void (*t3run)(fz_context *ctx, void *doc, void *resources, fz_buffer *contents, struct fz_device *dev, fz_matrix ctm, void *gstate, fz_default_colorspaces *default_cs, void *fill_gstate, void *stroke_gstate);
 	void (*t3freeres)(fz_context *ctx, void *doc, void *resources);
+	int t3loading; /* to detect recursive type3 fonts */
 
 	fz_rect bbox;	/* font bbox is used only for t3 fonts */
+
+	float ascender;
+	float descender;
+	fz_ascdesc_source ascdesc_src;
 
 	int glyph_count;
 

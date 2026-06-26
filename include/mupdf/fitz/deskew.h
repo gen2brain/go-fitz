@@ -20,12 +20,27 @@
 // Artifex Software, Inc., 39 Mesa Street, Suite 108A, San Francisco,
 // CA 94129, USA, for further information.
 
-#ifndef MUPDF_FITZ_VERSION_H
-#define MUPDF_FITZ_VERSION_H
-#ifndef FZ_VERSION
-#define FZ_VERSION "1.28.0"
-#define FZ_VERSION_MAJOR 1
-#define FZ_VERSION_MINOR 28
-#define FZ_VERSION_PATCH 0
-#endif
-#endif
+#ifndef MUPDF_FITZ_DESKEW_H
+#define MUPDF_FITZ_DESKEW_H
+
+#include "mupdf/fitz/system.h"
+#include "mupdf/fitz/context.h"
+
+enum
+{
+	FZ_DESKEW_BORDER_INCREASE = 0,
+	FZ_DESKEW_BORDER_MAINTAIN = 1,
+	FZ_DESKEW_BORDER_DECREASE = 2
+};
+
+fz_pixmap *fz_deskew_pixmap(fz_context *ctx,
+			fz_pixmap *src,
+			double degrees,
+			int border);
+
+/* Skew detection */
+
+double fz_detect_skew(fz_context *ctx, fz_pixmap *pixmap);
+
+
+#endif /* MUPDF_FITZ_DESKEW_H */

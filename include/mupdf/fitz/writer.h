@@ -1,4 +1,4 @@
-// Copyright (C) 2004-2023 Artifex Software, Inc.
+// Copyright (C) 2004-2025 Artifex Software, Inc.
 //
 // This file is part of MuPDF.
 //
@@ -73,31 +73,6 @@ typedef void (fz_document_writer_drop_writer_fn)(fz_context *ctx, fz_document_wr
 	((TYPE *)Memento_label(fz_new_document_writer_of_size(CTX,sizeof(TYPE),BEGIN_PAGE,END_PAGE,CLOSE,DROP),#TYPE))
 
 /**
-	Look for a given option (key) in the opts string. Return 1 if
-	it has it, and update *val to point to the value within opts.
-*/
-int fz_has_option(fz_context *ctx, const char *opts, const char *key, const char **val);
-
-/**
-	Check to see if an option, a, from a string matches a reference
-	option, b.
-
-	(i.e. a could be 'foo' or 'foo,bar...' etc, but b can only be
-	'foo'.)
-*/
-int fz_option_eq(const char *a, const char *b);
-
-/**
-	Copy an option (val) into a destination buffer (dest), of maxlen
-	bytes.
-
-	Returns the number of bytes (including terminator) that did not
-	fit. If val is maxlen or greater bytes in size, it will be left
-	unterminated.
-*/
-size_t fz_copy_option(fz_context *ctx, const char *val, char *dest, size_t maxlen);
-
-/**
 	Create a new fz_document_writer, for a
 	file of the given type.
 
@@ -153,6 +128,9 @@ fz_document_writer *fz_new_pwg_writer_with_output(fz_context *ctx, fz_output *ou
 
 fz_document_writer *fz_new_cbz_writer(fz_context *ctx, const char *path, const char *options);
 fz_document_writer *fz_new_cbz_writer_with_output(fz_context *ctx, fz_output *out, const char *options);
+
+fz_document_writer *fz_new_csv_writer(fz_context *ctx, const char *path, const char *options);
+fz_document_writer *fz_new_csv_writer_with_output(fz_context *ctx, fz_output *out, const char *options);
 
 /**
 	Used to report progress of the OCR operation.
@@ -225,6 +203,9 @@ void fz_drop_document_writer(fz_context *ctx, fz_document_writer *wri);
 
 fz_document_writer *fz_new_pixmap_writer(fz_context *ctx, const char *path, const char *options, const char *default_path, int n,
 	void (*save)(fz_context *ctx, fz_pixmap *pix, const char *filename));
+
+fz_document_writer *fz_new_pixmap_writer_with_output(fz_context *ctx, fz_output *out, const char *options, int n,
+	void (*write)(fz_context *ctx, fz_output *out, fz_pixmap *pix));
 
 FZ_DATA extern const char *fz_pdf_write_options_usage;
 FZ_DATA extern const char *fz_svg_write_options_usage;

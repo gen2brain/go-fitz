@@ -40,13 +40,22 @@ fz_pool *fz_new_pool(fz_context *ctx);
 
 /**
 	Allocate a block of size bytes from the pool.
+	Block will be inited to 0's.
 */
 void *fz_pool_alloc(fz_context *ctx, fz_pool *pool, size_t size);
+
+#define fz_pool_alloc_struct(CTX, POOL, TYPE) \
+	((TYPE*)Memento_label(fz_pool_alloc(CTX, POOL, sizeof(TYPE)), #TYPE))
 
 /**
 	strdup equivalent allocating from the pool.
 */
 char *fz_pool_strdup(fz_context *ctx, fz_pool *pool, const char *s);
+
+/**
+	strndup equivalent allocating from the pool.
+*/
+char *fz_pool_strndup(fz_context *ctx, fz_pool *pool, const char *s, size_t n);
 
 /**
 	The current size of the pool.
@@ -64,5 +73,39 @@ size_t fz_pool_size(fz_context *ctx, fz_pool *pool);
 	the pool.
 */
 void fz_drop_pool(fz_context *ctx, fz_pool *pool);
+
+/**
+	Routines to handle a 'variable length array' within the pool.
+
+	Appending to the array, and looking up items within the array
+	are O(log n) operations.
+*/
+typedef struct fz_pool_array fz_pool_array;
+
+/**
+	Create a new pool array for a given type, with a given initial size.
+*/
+#define fz_new_pool_array(CTX, POOL, TYPE, INIT) \
+	fz_new_pool_array_imp(CTX, POOL, sizeof(TYPE), INIT);
+
+fz_pool_array *fz_new_pool_array_imp(fz_context *ctx, fz_pool *pool, size_t size, size_t initial);
+
+/**
+	Append an element to the end of the array.
+
+	Returns a pointer to the new element (initially all 0's), and
+	(optionally) the index of that element.
+*/
+void *fz_pool_array_append(fz_context *ctx, fz_pool_array *arr, size_t *idx);
+
+/**
+	Lookup an element in the array.
+*/
+void *fz_pool_array_lookup(fz_context *ctx, fz_pool_array *arr, size_t idx);
+
+/**
+	Get the length of the array.
+*/
+size_t fz_pool_array_len(fz_context *ctx, fz_pool_array *arr);
 
 #endif

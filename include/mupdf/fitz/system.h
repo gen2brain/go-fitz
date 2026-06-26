@@ -1,4 +1,4 @@
-// Copyright (C) 2004-2022 Artifex Software, Inc.
+// Copyright (C) 2004-2025 Artifex Software, Inc.
 //
 // This file is part of MuPDF.
 //
@@ -39,6 +39,13 @@
 #include <setjmp.h> /* needed for the try/catch macros */
 #include <stdio.h> /* useful for debug printfs */
 
+#ifdef __cplusplus
+/* C++ doesn't support flexible array members... */
+#define FZ_FLEXIBLE_ARRAY 1
+#else
+#define FZ_FLEXIBLE_ARRAY
+#endif
+
 #include "export.h"
 
 #if defined(_MSC_VER) && (_MSC_VER < 1700) /* MSVC older than VS2012 */
@@ -57,10 +64,21 @@ typedef unsigned __int64 uint64_t;
 #include <stdint.h> /* needed for int64_t */
 #endif
 
+/* Detect if we can use stdckdint.h */
+#ifdef __has_include
+#if __has_include(<stdckdint.h>)
+#define HAVE_STDCKDINT_H 1
+#endif
+#endif
+
 #include "mupdf/memento.h"
 #include "mupdf/fitz/track-usage.h"
 
 #define nelem(x) (sizeof(x)/sizeof((x)[0]))
+
+#ifndef PATH_MAX
+#define PATH_MAX 4096
+#endif
 
 #define FZ_PI 3.14159265f
 #define FZ_RADIAN 57.2957795f
@@ -72,11 +90,36 @@ typedef unsigned __int64 uint64_t;
 	Spot architectures where we have optimisations.
 */
 
+/* ARCH_ARM is only used for 32bit ARM stuff. */
 #if defined(__arm__) || defined(__thumb__)
 #ifndef ARCH_ARM
 #define ARCH_ARM
 #endif
 #endif
+
+/* Detect NEON */
+#ifndef ARCH_HAS_NEON
+#if defined(__ARM_NEON) || defined(__ARM_NEON__)
+#define ARCH_HAS_NEON 1
+#endif
+#endif
+
+#ifndef ARCH_HAS_NEON
+#define ARCH_HAS_NEON 0
+#endif
+
+
+/* We assume that pretty much any X86 or X64 machine has SSE these days. */
+#ifndef ARCH_HAS_SSE
+#if defined(_M_IX86) || defined(_M_AMD64) || defined(_M_X64)
+#define ARCH_HAS_SSE 1
+#endif
+#endif
+
+#ifndef ARCH_HAS_SSE
+#define ARCH_HAS_SSE 0
+#endif
+
 
 /**
 	Some differences in libc can be smoothed over
@@ -302,6 +345,19 @@ int fz_mkdir(char *path);
 #else
 #define FZ_POINTER_ALIGN_MOD FZ_MEMORY_BLOCK_ALIGN_MOD
 #endif
+#endif
+
+/*
+ * The undefined behavior sanitizer complains about unaligned loads even on
+ * platforms where unaligned loads are allowed.
+ *
+ * Older compilers don't set __SANITIZE_UNDEFINED__, but we can also
+ * check for __SANITIZE_ADDRESS__ since our sanitize build target enables
+ * both ASAN and UBSAN.
+ */
+#if defined(__SANITIZE_ADDRESS__) || defined(__SANITIZE_UNDEFINED__)
+#undef FZ_POINTER_ALIGN_MOD
+#define FZ_POINTER_ALIGN_MOD FZ_MEMORY_BLOCK_ALIGN_MOD
 #endif
 
 #ifdef CLUSTER

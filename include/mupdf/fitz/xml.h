@@ -1,4 +1,4 @@
-// Copyright (C) 2004-2022 Artifex Software, Inc.
+// Copyright (C) 2004-2024 Artifex Software, Inc.
 //
 // This file is part of MuPDF.
 //
@@ -257,6 +257,11 @@ fz_xml *fz_xml_find_next_dfs(fz_xml *item, const char *tag, const char *att, con
 fz_xml *fz_xml_find_next_dfs_top(fz_xml *item, const char *tag, const char *att, const char *match, fz_xml *top);
 
 /**
+	Extract and concatenate all plain text data from XML tree into a new string.
+*/
+char *fz_new_text_from_xml(fz_context *ctx, fz_xml *root);
+
+/**
 	DOM-like functions for html in xml.
 */
 
@@ -393,5 +398,43 @@ const char *fz_dom_attribute(fz_context *ctx, fz_xml *elt, const char *att);
 	value will be a borrowed pointer to the value.
 */
 const char *fz_dom_get_attribute(fz_context *ctx, fz_xml *elt, int i, const char **att);
+
+/**
+	Make new xml dom root element.
+*/
+fz_xml *fz_new_dom(fz_context *ctx, const char *tag);
+
+/**
+	Create a new dom node.
+
+	This will NOT be linked in yet.
+*/
+fz_xml *fz_new_dom_node(fz_context *ctx, fz_xml *dom, const char *tag);
+
+/**
+	Create a new dom text node.
+
+	This will NOT be linked in yet.
+*/
+fz_xml *fz_new_dom_text_node(fz_context *ctx, fz_xml *dom, const char *text);
+
+/**
+	Write our xml structure out to an xml stream.
+
+	Properly formatted XML is only allowed to have a single top-level node
+	under which everything must sit. Our structures allow for multiple
+	top level nodes. If required, we will output an extra 'ROOT' node
+	at the top so that the xml is well-formed.
+
+	If 'indented' is non-zero then additional whitespace will be added to
+	make the XML easier to read in a text editor. It will NOT be properly
+	compliant.
+*/
+void fz_write_xml(fz_context *ctx, fz_xml *root, fz_output *out, int indented);
+
+/**
+	As for fz_write_xml, but direct to a file.
+*/
+void fz_save_xml(fz_context *ctx, fz_xml *root, const char *path, int indented);
 
 #endif
