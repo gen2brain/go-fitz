@@ -4,7 +4,7 @@ package fitz
 
 /*
 #cgo !static LDFLAGS: -lmupdf -lm
-#cgo static LDFLAGS: -lmupdf -lm -lmupdf-third
+#cgo static LDFLAGS: -lmupdf -lmupdf-third -lm
 #cgo android LDFLAGS: -llog
 #cgo windows LDFLAGS: -lcomdlg32 -lgdi32
 */
