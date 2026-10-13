@@ -8,6 +8,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 	"testing"
 
@@ -269,6 +270,11 @@ func TestMetadata(t *testing.T) {
 	if len(meta) == 0 {
 		t.Error(fmt.Errorf("metadata is empty"))
 	}
+	for key, value := range meta {
+		if strings.ContainsRune(value, '\x00') {
+			t.Errorf("metadata %q contains NUL padding", key)
+		}
+	}
 }
 
 func TestBound(t *testing.T) {
@@ -322,7 +328,8 @@ func (emptyReader) Read([]byte) (int, error) { return 0, io.EOF }
 func TestConcurrent(t *testing.T) {
 	for _, name := range []string{"test.pdf", "bug_jpx.pdf"} {
 		t.Run(name, func(t *testing.T) {
-			b, err := os.ReadFile(filepath.Join("testdata", name))
+			filename := filepath.Join("testdata", name)
+			b, err := os.ReadFile(filename)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -332,13 +339,20 @@ func TestConcurrent(t *testing.T) {
 
 			var wg sync.WaitGroup
 			errs := make(chan error, workers*iters)
+			start := make(chan struct{})
 
 			for w := 0; w < workers; w++ {
+				// Both constructors must participate in the same native locks.
+				openDocument := func() (*fitz.Document, error) { return fitz.NewFromMemory(b) }
+				if w%2 == 0 {
+					openDocument = func() (*fitz.Document, error) { return fitz.New(filename) }
+				}
 				wg.Add(1)
 				go func() {
 					defer wg.Done()
+					<-start
 					for i := 0; i < iters; i++ {
-						doc, err := fitz.NewFromMemory(b)
+						doc, err := openDocument()
 						if err != nil {
 							errs <- err
 							return
@@ -358,6 +372,7 @@ func TestConcurrent(t *testing.T) {
 				}()
 			}
 
+			close(start)
 			wg.Wait()
 			close(errs)
 			for err := range errs {
