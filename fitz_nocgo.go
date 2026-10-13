@@ -28,8 +28,6 @@ type Document struct {
 
 // New returns new fitz document.
 func New(filename string) (f *Document, err error) {
-	f = &Document{}
-
 	filename, err = filepath.Abs(filename)
 	if err != nil {
 		return
@@ -40,11 +38,17 @@ func New(filename string) (f *Document, err error) {
 		return
 	}
 
-	f.ctx = fzNewContextImp(nil, nil, uint64(MaxStore), FzVersion)
+	f = &Document{}
+	f.ctx = fzNewContextImp(nil, &contextLocks, uint64(MaxStore), FzVersion)
 	if f.ctx == nil {
-		err = ErrCreateContext
-		return
+		return nil, ErrCreateContext
 	}
+	defer func(doc *Document) {
+		if err != nil {
+			doc.Close()
+			f = nil
+		}
+	}(f)
 
 	silenceWarnings(f.ctx)
 
@@ -70,13 +74,22 @@ func NewFromMemory(b []byte) (f *Document, err error) {
 	if len(b) == 0 {
 		return nil, ErrEmptyBytes
 	}
+	magic := contentType(b)
+	if magic == "" {
+		return nil, ErrOpenMemory
+	}
 	f = &Document{}
 
-	f.ctx = fzNewContextImp(nil, nil, uint64(MaxStore), FzVersion)
+	f.ctx = fzNewContextImp(nil, &contextLocks, uint64(MaxStore), FzVersion)
 	if f.ctx == nil {
-		err = ErrCreateContext
-		return
+		return nil, ErrCreateContext
 	}
+	defer func(doc *Document) {
+		if err != nil {
+			doc.Close()
+			f = nil
+		}
+	}(f)
 
 	silenceWarnings(f.ctx)
 
@@ -88,17 +101,12 @@ func NewFromMemory(b []byte) (f *Document, err error) {
 		return
 	}
 
-	magic := contentType(b)
-	if magic == "" {
-		err = ErrOpenMemory
-		return
-	}
-
 	f.data = b
 
 	f.doc = fzOpenDocumentWithStream(f.ctx, magic, f.stream)
 	if f.doc == nil {
 		err = ErrOpenDocument
+		return
 	}
 
 	ret := fzNeedsPassword(f.ctx, f.doc)
@@ -551,7 +559,7 @@ func (f *Document) Metadata() map[string]string {
 		buf := make([]byte, 256)
 		fzLookupMetadata(f.ctx, f.doc, key, unsafe.SliceData(buf), len(buf))
 
-		return string(buf)
+		return strings.TrimRight(string(buf), "\x00")
 	}
 
 	data["format"] = lookup("format")
@@ -740,7 +748,7 @@ func version() string {
 
 // probeVersion reports whether ver is the libmupdf build version.
 func probeVersion(ver string) bool {
-	ctx := fzNewContextImp(nil, nil, uint64(MaxStore), ver)
+	ctx := fzNewContextImp(nil, &contextLocks, uint64(MaxStore), ver)
 	if ctx == nil {
 		return false
 	}
@@ -1191,8 +1199,8 @@ type fzAllocContext struct {
 
 type fzLocksContext struct {
 	User   *byte
-	Lock   *[0]byte
-	Unlock *[0]byte
+	Lock   uintptr
+	Unlock uintptr
 }
 
 type fzErrorContext struct {

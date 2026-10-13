@@ -8,6 +8,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 	"testing"
 
@@ -269,6 +270,11 @@ func TestMetadata(t *testing.T) {
 	if len(meta) == 0 {
 		t.Error(fmt.Errorf("metadata is empty"))
 	}
+	for key, value := range meta {
+		if strings.ContainsRune(value, '\x00') {
+			t.Errorf("metadata %q contains NUL padding", key)
+		}
+	}
 }
 
 func TestBound(t *testing.T) {
@@ -320,45 +326,58 @@ type emptyReader struct{}
 func (emptyReader) Read([]byte) (int, error) { return 0, io.EOF }
 
 func TestConcurrent(t *testing.T) {
-	b, err := os.ReadFile(filepath.Join("testdata", "test.pdf"))
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	const workers = 8
-	const iters = 20
-
-	var wg sync.WaitGroup
-	errs := make(chan error, workers*iters)
-
-	for w := 0; w < workers; w++ {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			for i := 0; i < iters; i++ {
-				doc, err := fitz.NewFromMemory(b)
-				if err != nil {
-					errs <- err
-					return
-				}
-				if _, err := doc.ImageDPI(0, 200); err != nil {
-					doc.Close()
-					errs <- err
-					return
-				}
-				if _, err := doc.Text(0); err != nil {
-					doc.Close()
-					errs <- err
-					return
-				}
-				doc.Close()
+	for _, name := range []string{"test.pdf", "bug_jpx.pdf"} {
+		t.Run(name, func(t *testing.T) {
+			filename := filepath.Join("testdata", name)
+			b, err := os.ReadFile(filename)
+			if err != nil {
+				t.Fatal(err)
 			}
-		}()
-	}
 
-	wg.Wait()
-	close(errs)
-	for err := range errs {
-		t.Error(err)
+			const workers = 8
+			const iters = 20
+
+			var wg sync.WaitGroup
+			errs := make(chan error, workers*iters)
+			start := make(chan struct{})
+
+			for w := 0; w < workers; w++ {
+				// Both constructors must participate in the same native locks.
+				openDocument := func() (*fitz.Document, error) { return fitz.NewFromMemory(b) }
+				if w%2 == 0 {
+					openDocument = func() (*fitz.Document, error) { return fitz.New(filename) }
+				}
+				wg.Add(1)
+				go func() {
+					defer wg.Done()
+					<-start
+					for i := 0; i < iters; i++ {
+						doc, err := openDocument()
+						if err != nil {
+							errs <- err
+							return
+						}
+						if _, err := doc.ImageDPI(0, 200); err != nil {
+							doc.Close()
+							errs <- err
+							return
+						}
+						if _, err := doc.Text(0); err != nil {
+							doc.Close()
+							errs <- err
+							return
+						}
+						doc.Close()
+					}
+				}()
+			}
+
+			close(start)
+			wg.Wait()
+			close(errs)
+			for err := range errs {
+				t.Error(err)
+			}
+		})
 	}
 }

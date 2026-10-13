@@ -6,13 +6,6 @@ package fitz
 #include <mupdf/fitz.h>
 #include <stdlib.h>
 
-const char *fz_version = FZ_VERSION;
-#if defined(_WIN32)
-	typedef unsigned long long store;
-#else
-	typedef unsigned long store;
-#endif
-
 fz_document *open_document(fz_context *ctx, const char *filename) {
 	fz_document *doc;
 
@@ -127,6 +120,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 	"unsafe"
 )
@@ -142,8 +136,6 @@ type Document struct {
 
 // New returns new fitz document.
 func New(filename string) (f *Document, err error) {
-	f = &Document{}
-
 	filename, err = filepath.Abs(filename)
 	if err != nil {
 		return
@@ -154,11 +146,17 @@ func New(filename string) (f *Document, err error) {
 		return
 	}
 
-	f.ctx = (*C.struct_fz_context)(unsafe.Pointer(C.fz_new_context_imp(nil, nil, C.store(MaxStore), C.fz_version)))
+	f = &Document{}
+	f.ctx = newContext()
 	if f.ctx == nil {
-		err = ErrCreateContext
-		return
+		return nil, ErrCreateContext
 	}
+	defer func(doc *Document) {
+		if err != nil {
+			doc.Close()
+			f = nil
+		}
+	}(f)
 
 	C.silence_warnings(f.ctx)
 
@@ -187,13 +185,22 @@ func NewFromMemory(b []byte) (f *Document, err error) {
 	if len(b) == 0 {
 		return nil, ErrEmptyBytes
 	}
+	magic := contentType(b)
+	if magic == "" {
+		return nil, ErrOpenMemory
+	}
 	f = &Document{}
 
-	f.ctx = (*C.struct_fz_context)(unsafe.Pointer(C.fz_new_context_imp(nil, nil, C.store(MaxStore), C.fz_version)))
+	f.ctx = newContext()
 	if f.ctx == nil {
-		err = ErrCreateContext
-		return
+		return nil, ErrCreateContext
 	}
+	defer func(doc *Document) {
+		if err != nil {
+			doc.Close()
+			f = nil
+		}
+	}(f)
 
 	C.silence_warnings(f.ctx)
 
@@ -201,12 +208,6 @@ func NewFromMemory(b []byte) (f *Document, err error) {
 
 	f.stream = C.fz_open_memory(f.ctx, (*C.uchar)(&b[0]), C.size_t(len(b)))
 	if f.stream == nil {
-		err = ErrOpenMemory
-		return
-	}
-
-	magic := contentType(b)
-	if magic == "" {
 		err = ErrOpenMemory
 		return
 	}
@@ -219,6 +220,7 @@ func NewFromMemory(b []byte) (f *Document, err error) {
 	f.doc = C.open_document_with_stream(f.ctx, cmagic, f.stream)
 	if f.doc == nil {
 		err = ErrOpenDocument
+		return
 	}
 
 	ret := C.fz_needs_password(f.ctx, f.doc)
@@ -640,10 +642,11 @@ func (f *Document) Metadata() map[string]string {
 		ckey := C.CString(key)
 		defer C.free(unsafe.Pointer(ckey))
 
-		buf := make([]byte, 256)
-		C.fz_lookup_metadata(f.ctx, f.doc, ckey, (*C.char)(unsafe.Pointer(&buf[0])), C.size_t(len(buf)))
+		const bufSize = 256 // Accepted by MuPDF versions taking either int or size_t.
+		buf := make([]byte, bufSize)
+		C.fz_lookup_metadata(f.ctx, f.doc, ckey, (*C.char)(unsafe.Pointer(&buf[0])), bufSize)
 
-		return string(buf)
+		return strings.TrimRight(string(buf), "\x00")
 	}
 
 	data["format"] = lookup("format")
