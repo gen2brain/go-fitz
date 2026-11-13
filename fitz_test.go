@@ -362,3 +362,24 @@ func TestConcurrent(t *testing.T) {
 		t.Error(err)
 	}
 }
+
+func TestAnnotations(t *testing.T) {
+	doc, err := fitz.New(filepath.Join("testdata", "annot.pdf"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer doc.Close()
+
+	img, err := doc.ImageDPI(0, 72)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if c := img.RGBAAt(100, 100); c.R != 255 || c.G != 0 || c.B != 0 {
+		t.Errorf("annotation not rendered, center pixel %v", c)
+	}
+
+	if c := img.RGBAAt(10, 10); c.R != 255 || c.G != 255 || c.B != 255 {
+		t.Errorf("unexpected corner pixel %v", c)
+	}
+}

@@ -175,7 +175,7 @@ func (f *Document) pageInfo(pageNumber int) (dpi, x0, y0, x1, y1 float64, crop b
 	device := fzNewStextDevice(f.ctx, text, &opts)
 	fzEnableDeviceHints(f.ctx, device, fzNoCache)
 
-	runPageContents(f.ctx, page, device, fzIdentity)
+	runPage(f.ctx, page, device, fzIdentity)
 	fzCloseDevice(f.ctx, device)
 	fzDropDevice(f.ctx, device)
 
@@ -254,7 +254,7 @@ func (f *Document) ImageDPI(pageNumber int, dpi float64) (*image.RGBA, error) {
 	fzEnableDeviceHints(f.ctx, device, fzNoCache)
 	defer fzDropDevice(f.ctx, device)
 
-	runPageContents(f.ctx, page, device, fzIdentity)
+	runPage(f.ctx, page, device, fzIdentity)
 
 	fzCloseDevice(f.ctx, device)
 
@@ -307,7 +307,7 @@ func (f *Document) ImagePNG(pageNumber int, dpi float64) ([]byte, error) {
 	fzEnableDeviceHints(f.ctx, device, fzNoCache)
 	defer fzDropDevice(f.ctx, device)
 
-	runPageContents(f.ctx, page, device, fzIdentity)
+	runPage(f.ctx, page, device, fzIdentity)
 
 	fzCloseDevice(f.ctx, device)
 
@@ -396,7 +396,7 @@ func (f *Document) Text(pageNumber int) (string, error) {
 	fzEnableDeviceHints(f.ctx, device, fzNoCache)
 	defer fzDropDevice(f.ctx, device)
 
-	runPageContents(f.ctx, page, device, ctm)
+	runPage(f.ctx, page, device, ctm)
 
 	fzCloseDevice(f.ctx, device)
 
@@ -440,7 +440,7 @@ func (f *Document) HTML(pageNumber int, header bool) (string, error) {
 	fzEnableDeviceHints(f.ctx, device, fzNoCache)
 	defer fzDropDevice(f.ctx, device)
 
-	runPageContents(f.ctx, page, device, ctm)
+	runPage(f.ctx, page, device, ctm)
 
 	fzCloseDevice(f.ctx, device)
 
@@ -498,7 +498,7 @@ func (f *Document) SVG(pageNumber int) (string, error) {
 	fzEnableDeviceHints(f.ctx, device, fzNoCache)
 	defer fzDropDevice(f.ctx, device)
 
-	runPageContents(f.ctx, page, device, ctm)
+	runPage(f.ctx, page, device, ctm)
 
 	fzCloseDevice(f.ctx, device)
 	fzCloseOutput(f.ctx, out)

@@ -47,9 +47,9 @@ fz_page *load_page(fz_context *ctx, fz_document *doc, int number) {
 	return page;
 }
 
-int run_page_contents(fz_context *ctx, fz_page *page, fz_device *dev, fz_matrix transform, fz_cookie *cookie) {
+int run_page(fz_context *ctx, fz_page *page, fz_device *dev, fz_matrix transform, fz_cookie *cookie) {
 	fz_try(ctx) {
-		fz_run_page_contents(ctx, page, dev, transform, cookie);
+		fz_run_page(ctx, page, dev, transform, cookie);
 	}
 	fz_catch(ctx) {
 		return 0;
@@ -324,7 +324,7 @@ func (f *Document) ImageDPI(pageNumber int, dpi float64) (*image.RGBA, error) {
 	defer C.fz_drop_device(f.ctx, device)
 
 	drawMatrix := C.fz_identity
-	ret := C.run_page_contents(f.ctx, page, device, drawMatrix, nil)
+	ret := C.run_page(f.ctx, page, device, drawMatrix, nil)
 	if ret == 0 {
 		return nil, ErrRunPageContents
 	}
@@ -381,7 +381,7 @@ func (f *Document) ImagePNG(pageNumber int, dpi float64) ([]byte, error) {
 	defer C.fz_drop_device(f.ctx, device)
 
 	drawMatrix := C.fz_identity
-	ret := C.run_page_contents(f.ctx, page, device, drawMatrix, nil)
+	ret := C.run_page(f.ctx, page, device, drawMatrix, nil)
 	if ret == 0 {
 		return nil, ErrRunPageContents
 	}
@@ -471,7 +471,7 @@ func (f *Document) Text(pageNumber int) (string, error) {
 	defer C.fz_drop_device(f.ctx, device)
 
 	var cookie C.fz_cookie
-	ret := C.run_page_contents(f.ctx, page, device, ctm, &cookie)
+	ret := C.run_page(f.ctx, page, device, ctm, &cookie)
 	if ret == 0 {
 		return "", ErrRunPageContents
 	}
@@ -519,7 +519,7 @@ func (f *Document) HTML(pageNumber int, header bool) (string, error) {
 	defer C.fz_drop_device(f.ctx, device)
 
 	var cookie C.fz_cookie
-	ret := C.run_page_contents(f.ctx, page, device, ctm, &cookie)
+	ret := C.run_page(f.ctx, page, device, ctm, &cookie)
 	if ret == 0 {
 		return "", ErrRunPageContents
 	}
@@ -581,7 +581,7 @@ func (f *Document) SVG(pageNumber int) (string, error) {
 	defer C.fz_drop_device(f.ctx, device)
 
 	var cookie C.fz_cookie
-	ret := C.run_page_contents(f.ctx, page, device, ctm, &cookie)
+	ret := C.run_page(f.ctx, page, device, ctm, &cookie)
 	if ret == 0 {
 		return "", ErrRunPageContents
 	}

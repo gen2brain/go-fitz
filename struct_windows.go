@@ -9,7 +9,7 @@ import "github.com/ebitengine/purego"
 var (
 	fzBoundPage                func(sret *fzRect, ctx *fzContext, page *fzPage) uintptr
 	fzNewDrawDevice            func(ctx *fzContext, transform *fzMatrix, dest *fzPixmap) *fzDevice
-	fzRunPageContents          func(ctx *fzContext, page *fzPage, dev *fzDevice, transform *fzMatrix, cookie *fzCookie)
+	fzRunPage                  func(ctx *fzContext, page *fzPage, dev *fzDevice, transform *fzMatrix, cookie *fzCookie)
 	fzNewBufferFromPixmapAsPNG func(ctx *fzContext, pix *fzPixmap, params uint32) *fzBuffer
 	fzNewStextPage             func(ctx *fzContext, mediabox *fzRect) *fzStextPage
 )
@@ -17,7 +17,7 @@ var (
 func registerStructFuncs(lib uintptr) {
 	purego.RegisterLibFunc(&fzBoundPage, lib, "fz_bound_page")
 	purego.RegisterLibFunc(&fzNewDrawDevice, lib, "fz_new_draw_device")
-	purego.RegisterLibFunc(&fzRunPageContents, lib, "fz_run_page_contents")
+	purego.RegisterLibFunc(&fzRunPage, lib, "fz_run_page")
 	purego.RegisterLibFunc(&fzNewBufferFromPixmapAsPNG, lib, "fz_new_buffer_from_pixmap_as_png")
 	purego.RegisterLibFunc(&fzNewStextPage, lib, "fz_new_stext_page")
 }
@@ -33,9 +33,9 @@ func newDrawDevice(ctx *fzContext, transform fzMatrix, dest *fzPixmap) *fzDevice
 	return fzNewDrawDevice(ctx, &transform, dest)
 }
 
-func runPageContents(ctx *fzContext, page *fzPage, dev *fzDevice, transform fzMatrix) {
+func runPage(ctx *fzContext, page *fzPage, dev *fzDevice, transform fzMatrix) {
 	var cookie fzCookie
-	fzRunPageContents(ctx, page, dev, &transform, &cookie)
+	fzRunPage(ctx, page, dev, &transform, &cookie)
 }
 
 func newBufferFromPixmapAsPNG(ctx *fzContext, pix *fzPixmap, params fzColorParams) *fzBuffer {
