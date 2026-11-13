@@ -7,11 +7,6 @@ package fitz
 #include <stdlib.h>
 
 const char *fz_version = FZ_VERSION;
-#if defined(_WIN32)
-	typedef unsigned long long store;
-#else
-	typedef unsigned long store;
-#endif
 
 fz_document *open_document(fz_context *ctx, const char *filename) {
 	fz_document *doc;
@@ -154,7 +149,7 @@ func New(filename string) (f *Document, err error) {
 		return
 	}
 
-	f.ctx = (*C.struct_fz_context)(unsafe.Pointer(C.fz_new_context_imp(nil, nil, C.store(MaxStore), C.fz_version)))
+	f.ctx = (*C.struct_fz_context)(unsafe.Pointer(C.fz_new_context_imp(nil, nil, C.size_t(MaxStore), C.fz_version)))
 	if f.ctx == nil {
 		err = ErrCreateContext
 		return
@@ -189,7 +184,7 @@ func NewFromMemory(b []byte) (f *Document, err error) {
 	}
 	f = &Document{}
 
-	f.ctx = (*C.struct_fz_context)(unsafe.Pointer(C.fz_new_context_imp(nil, nil, C.store(MaxStore), C.fz_version)))
+	f.ctx = (*C.struct_fz_context)(unsafe.Pointer(C.fz_new_context_imp(nil, nil, C.size_t(MaxStore), C.fz_version)))
 	if f.ctx == nil {
 		err = ErrCreateContext
 		return
