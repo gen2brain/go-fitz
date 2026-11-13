@@ -446,7 +446,7 @@ func (f *Document) ImageDPI(pageNumber int, dpi float64) (*image.RGBA, error) {
 	}
 
 	img := image.NewRGBA(image.Rect(int(bbox.x0), int(bbox.y0), int(bbox.x1), int(bbox.y1)))
-	copy(img.Pix, C.GoBytes(unsafe.Pointer(pixels), C.int(4*bbox.x1*bbox.y1)))
+	copy(img.Pix, unsafe.Slice((*byte)(unsafe.Pointer(pixels)), len(img.Pix)))
 
 	return img, nil
 }
@@ -501,9 +501,8 @@ func (f *Document) ImagePNG(pageNumber int, dpi float64) ([]byte, error) {
 	defer C.fz_drop_buffer(f.ctx, buf)
 
 	size := C.fz_buffer_storage(f.ctx, buf, nil)
-	str := C.GoStringN(C.fz_string_from_buffer(f.ctx, buf), C.int(size))
 
-	return []byte(str), nil
+	return C.GoBytes(unsafe.Pointer(C.fz_string_from_buffer(f.ctx, buf)), C.int(size)), nil
 }
 
 // Links returns slice of links for given page number.
