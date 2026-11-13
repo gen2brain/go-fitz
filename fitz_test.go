@@ -8,8 +8,10 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"runtime"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/gen2brain/go-fitz"
 )
@@ -320,46 +322,48 @@ type emptyReader struct{}
 func (emptyReader) Read([]byte) (int, error) { return 0, io.EOF }
 
 func TestConcurrent(t *testing.T) {
-	b, err := os.ReadFile(filepath.Join("testdata", "test.pdf"))
-	if err != nil {
-		t.Fatal(err)
-	}
+	for _, name := range []string{"test.pdf", "bug_jpx.pdf"} {
+		b, err := os.ReadFile(filepath.Join("testdata", name))
+		if err != nil {
+			t.Fatal(err)
+		}
 
-	const workers = 8
-	const iters = 20
+		const workers = 8
+		const iters = 20
 
-	var wg sync.WaitGroup
-	errs := make(chan error, workers*iters)
+		var wg sync.WaitGroup
+		errs := make(chan error, workers*iters)
 
-	for w := 0; w < workers; w++ {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			for i := 0; i < iters; i++ {
-				doc, err := fitz.NewFromMemory(b)
-				if err != nil {
-					errs <- err
-					return
-				}
-				if _, err := doc.ImageDPI(0, 200); err != nil {
+		for w := 0; w < workers; w++ {
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+				for i := 0; i < iters; i++ {
+					doc, err := fitz.NewFromMemory(b)
+					if err != nil {
+						errs <- err
+						return
+					}
+					if _, err := doc.ImageDPI(0, 100); err != nil {
+						doc.Close()
+						errs <- err
+						return
+					}
+					if _, err := doc.Text(0); err != nil {
+						doc.Close()
+						errs <- err
+						return
+					}
 					doc.Close()
-					errs <- err
-					return
 				}
-				if _, err := doc.Text(0); err != nil {
-					doc.Close()
-					errs <- err
-					return
-				}
-				doc.Close()
-			}
-		}()
-	}
+			}()
+		}
 
-	wg.Wait()
-	close(errs)
-	for err := range errs {
-		t.Error(err)
+		wg.Wait()
+		close(errs)
+		for err := range errs {
+			t.Errorf("%s: %v", name, err)
+		}
 	}
 }
 
@@ -381,5 +385,50 @@ func TestAnnotations(t *testing.T) {
 
 	if c := img.RGBAAt(10, 10); c.R != 255 || c.G != 255 || c.B != 255 {
 		t.Errorf("unexpected corner pixel %v", c)
+	}
+}
+
+func TestCloseTwice(t *testing.T) {
+	doc, err := fitz.New(filepath.Join("testdata", "test.pdf"))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	doc.Close()
+	doc.Close()
+}
+
+func openDropped(t *testing.T) *fitz.Document {
+	b, err := os.ReadFile(filepath.Join("testdata", "test.pdf"))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	doc, err := fitz.NewFromMemory(b)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	return doc
+}
+
+func TestMemoryOwnership(t *testing.T) {
+	doc := openDropped(t)
+	defer doc.Close()
+
+	for i := 0; i < 5; i++ {
+		runtime.GC()
+	}
+
+	if _, err := doc.ImageDPI(0, 50); err != nil {
+		t.Error(err)
+	}
+}
+
+func TestNoClose(t *testing.T) {
+	for i := 0; i < 5; i++ {
+		openDropped(t)
+		runtime.GC()
+		time.Sleep(10 * time.Millisecond)
 	}
 }

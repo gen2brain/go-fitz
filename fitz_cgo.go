@@ -6,7 +6,106 @@ package fitz
 #include <mupdf/fitz.h>
 #include <stdlib.h>
 
-const char *fz_version = FZ_VERSION;
+#if defined(_WIN32)
+#include <windows.h>
+
+typedef SRWLOCK mutex_t;
+
+static SRWLOCK freetype_mutex = SRWLOCK_INIT;
+
+static void mutex_lock(mutex_t *m) {
+	AcquireSRWLockExclusive(m);
+}
+
+static void mutex_unlock(mutex_t *m) {
+	ReleaseSRWLockExclusive(m);
+}
+
+static int mutex_init(mutex_t *m) {
+	InitializeSRWLock(m);
+	return 1;
+}
+
+static void mutex_destroy(mutex_t *m) {
+}
+#else
+#include <pthread.h>
+
+typedef pthread_mutex_t mutex_t;
+
+static pthread_mutex_t freetype_mutex = PTHREAD_MUTEX_INITIALIZER;
+
+static void mutex_lock(mutex_t *m) {
+	pthread_mutex_lock(m);
+}
+
+static void mutex_unlock(mutex_t *m) {
+	pthread_mutex_unlock(m);
+}
+
+static int mutex_init(mutex_t *m) {
+	return pthread_mutex_init(m, NULL) == 0;
+}
+
+static void mutex_destroy(mutex_t *m) {
+	pthread_mutex_destroy(m);
+}
+#endif
+
+static void lock_mutex(void *user, int lock) {
+	if (lock == FZ_LOCK_FREETYPE) {
+		mutex_lock(&freetype_mutex);
+	} else {
+		mutex_lock(&((mutex_t *)user)[lock]);
+	}
+}
+
+static void unlock_mutex(void *user, int lock) {
+	if (lock == FZ_LOCK_FREETYPE) {
+		mutex_unlock(&freetype_mutex);
+	} else {
+		mutex_unlock(&((mutex_t *)user)[lock]);
+	}
+}
+
+void free_locks(void *user) {
+	mutex_t *m = user;
+
+	for (int i = 0; i < FZ_LOCK_MAX; i++) {
+		mutex_destroy(&m[i]);
+	}
+
+	free(m);
+}
+
+fz_context *new_context(size_t max_store, void **user) {
+	mutex_t *m = calloc(FZ_LOCK_MAX, sizeof(mutex_t));
+	if (m == NULL) {
+		return NULL;
+	}
+
+	for (int i = 0; i < FZ_LOCK_MAX; i++) {
+		if (!mutex_init(&m[i])) {
+			while (i > 0) {
+				mutex_destroy(&m[--i]);
+			}
+			free(m);
+			return NULL;
+		}
+	}
+
+	fz_locks_context locks = { m, lock_mutex, unlock_mutex };
+
+	fz_context *ctx = fz_new_context(NULL, &locks, max_store);
+	if (ctx == NULL) {
+		free_locks(m);
+		return NULL;
+	}
+
+	*user = m;
+
+	return ctx;
+}
 
 fz_document *open_document(fz_context *ctx, const char *filename) {
 	fz_document *doc;
@@ -122,6 +221,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"runtime"
 	"sync"
 	"unsafe"
 )
@@ -129,7 +229,9 @@ import (
 // Document represents fitz document.
 type Document struct {
 	ctx    *C.struct_fz_context
-	data   []byte // binds data to the Document lifecycle avoiding premature GC
+	data   []byte
+	pinner runtime.Pinner
+	locks  unsafe.Pointer
 	doc    *C.struct_fz_document
 	mtx    sync.Mutex
 	stream *C.fz_stream
@@ -149,7 +251,7 @@ func New(filename string) (f *Document, err error) {
 		return
 	}
 
-	f.ctx = (*C.struct_fz_context)(unsafe.Pointer(C.fz_new_context_imp(nil, nil, C.size_t(MaxStore), C.fz_version)))
+	f.ctx = C.new_context(C.size_t(MaxStore), &f.locks)
 	if f.ctx == nil {
 		err = ErrCreateContext
 		return
@@ -164,13 +266,14 @@ func New(filename string) (f *Document, err error) {
 
 	f.doc = C.open_document(f.ctx, cfilename)
 	if f.doc == nil {
+		f.Close()
 		err = ErrOpenDocument
 		return
 	}
 
-	ret := C.fz_needs_password(f.ctx, f.doc)
-	v := int(ret) != 0
-	if v {
+	runtime.SetFinalizer(f, (*Document).Close)
+
+	if C.fz_needs_password(f.ctx, f.doc) != 0 {
 		err = ErrNeedsPassword
 	}
 
@@ -178,13 +281,21 @@ func New(filename string) (f *Document, err error) {
 }
 
 // NewFromMemory returns new fitz document from byte slice.
+//
+// The byte slice must not be modified until the document is closed.
 func NewFromMemory(b []byte) (f *Document, err error) {
 	if len(b) == 0 {
 		return nil, ErrEmptyBytes
 	}
 	f = &Document{}
 
-	f.ctx = (*C.struct_fz_context)(unsafe.Pointer(C.fz_new_context_imp(nil, nil, C.size_t(MaxStore), C.fz_version)))
+	magic := contentType(b)
+	if magic == "" {
+		err = ErrOpenMemory
+		return
+	}
+
+	f.ctx = C.new_context(C.size_t(MaxStore), &f.locks)
 	if f.ctx == nil {
 		err = ErrCreateContext
 		return
@@ -194,31 +305,29 @@ func NewFromMemory(b []byte) (f *Document, err error) {
 
 	C.fz_register_document_handlers(f.ctx)
 
+	f.data = b
+	f.pinner.Pin(&b[0])
+
 	f.stream = C.fz_open_memory(f.ctx, (*C.uchar)(&b[0]), C.size_t(len(b)))
 	if f.stream == nil {
+		f.Close()
 		err = ErrOpenMemory
 		return
 	}
-
-	magic := contentType(b)
-	if magic == "" {
-		err = ErrOpenMemory
-		return
-	}
-
-	f.data = b
 
 	cmagic := C.CString(magic)
 	defer C.free(unsafe.Pointer(cmagic))
 
 	f.doc = C.open_document_with_stream(f.ctx, cmagic, f.stream)
 	if f.doc == nil {
+		f.Close()
 		err = ErrOpenDocument
+		return
 	}
 
-	ret := C.fz_needs_password(f.ctx, f.doc)
-	v := int(ret) != 0
-	if v {
+	runtime.SetFinalizer(f, (*Document).Close)
+
+	if C.fz_needs_password(f.ctx, f.doc) != 0 {
 		err = ErrNeedsPassword
 	}
 
@@ -679,14 +788,28 @@ func (f *Document) Bound(pageNumber int) (image.Rectangle, error) {
 
 // Close closes the underlying fitz document.
 func (f *Document) Close() error {
-	if f.stream != nil {
-		C.fz_drop_stream(f.ctx, f.stream)
+	if f.ctx != nil {
+		if f.doc != nil {
+			C.fz_drop_document(f.ctx, f.doc)
+			f.doc = nil
+		}
+
+		if f.stream != nil {
+			C.fz_drop_stream(f.ctx, f.stream)
+			f.stream = nil
+		}
+
+		C.fz_drop_context(f.ctx)
+		f.ctx = nil
+
+		C.free_locks(f.locks)
+		f.locks = nil
 	}
 
-	C.fz_drop_document(f.ctx, f.doc)
-	C.fz_drop_context(f.ctx)
-
+	f.pinner.Unpin()
 	f.data = nil
+
+	runtime.SetFinalizer(f, nil)
 
 	return nil
 }

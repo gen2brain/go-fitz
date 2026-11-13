@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"runtime"
 	"strconv"
 	"strings"
 	"sync"
@@ -20,14 +21,17 @@ import (
 // Document represents fitz document.
 type Document struct {
 	ctx    *fzContext
-	data   []byte // binds data to the Document lifecycle avoiding premature GC
+	data   []byte
+	pinner runtime.Pinner
 	doc    *fzDocument
-	mtx    sync.Mutex
 	stream *fzStream
 }
 
 // New returns new fitz document.
 func New(filename string) (f *Document, err error) {
+	mupdf.Lock()
+	defer mupdf.Unlock()
+
 	f = &Document{}
 
 	filename, err = filepath.Abs(filename)
@@ -52,13 +56,14 @@ func New(filename string) (f *Document, err error) {
 
 	f.doc = fzOpenDocument(f.ctx, filename)
 	if f.doc == nil {
+		f.close()
 		err = ErrOpenDocument
 		return
 	}
 
-	ret := fzNeedsPassword(f.ctx, f.doc)
-	v := int(ret) != 0
-	if v {
+	runtime.SetFinalizer(f, (*Document).Close)
+
+	if fzNeedsPassword(f.ctx, f.doc) != 0 {
 		err = ErrNeedsPassword
 	}
 
@@ -66,11 +71,23 @@ func New(filename string) (f *Document, err error) {
 }
 
 // NewFromMemory returns new fitz document from byte slice.
+//
+// The byte slice must not be modified until the document is closed.
 func NewFromMemory(b []byte) (f *Document, err error) {
 	if len(b) == 0 {
 		return nil, ErrEmptyBytes
 	}
+
+	mupdf.Lock()
+	defer mupdf.Unlock()
+
 	f = &Document{}
+
+	magic := contentType(b)
+	if magic == "" {
+		err = ErrOpenMemory
+		return
+	}
 
 	f.ctx = fzNewContextImp(nil, nil, uint64(MaxStore), FzVersion)
 	if f.ctx == nil {
@@ -82,28 +99,26 @@ func NewFromMemory(b []byte) (f *Document, err error) {
 
 	fzRegisterDocumentHandlers(f.ctx)
 
+	f.data = b
+	f.pinner.Pin(&b[0])
+
 	f.stream = fzOpenMemory(f.ctx, unsafe.SliceData(b), uint64(len(b)))
 	if f.stream == nil {
+		f.close()
 		err = ErrOpenMemory
 		return
 	}
-
-	magic := contentType(b)
-	if magic == "" {
-		err = ErrOpenMemory
-		return
-	}
-
-	f.data = b
 
 	f.doc = fzOpenDocumentWithStream(f.ctx, magic, f.stream)
 	if f.doc == nil {
+		f.close()
 		err = ErrOpenDocument
+		return
 	}
 
-	ret := fzNeedsPassword(f.ctx, f.doc)
-	v := int(ret) != 0
-	if v {
+	runtime.SetFinalizer(f, (*Document).Close)
+
+	if fzNeedsPassword(f.ctx, f.doc) != 0 {
 		err = ErrNeedsPassword
 	}
 
@@ -125,6 +140,13 @@ func NewFromReader(r io.Reader) (f *Document, err error) {
 
 // NumPage returns total number of pages in document.
 func (f *Document) NumPage() int {
+	mupdf.Lock()
+	defer mupdf.Unlock()
+
+	return f.numPage()
+}
+
+func (f *Document) numPage() int {
 	return fzCountPages(f.ctx, f.doc)
 }
 
@@ -149,10 +171,10 @@ func (f *Document) Image(pageNumber int) (*image.RGBA, error) {
 
 // pageInfo returns the native resolution and, for a single full-page image, its bbox (points) with crop=true.
 func (f *Document) pageInfo(pageNumber int) (dpi, x0, y0, x1, y1 float64, crop bool) {
-	f.mtx.Lock()
-	defer f.mtx.Unlock()
+	mupdf.Lock()
+	defer mupdf.Unlock()
 
-	if pageNumber >= f.NumPage() {
+	if pageNumber >= f.numPage() {
 		return
 	}
 
@@ -218,10 +240,10 @@ func (f *Document) pageInfo(pageNumber int) (dpi, x0, y0, x1, y1 float64, crop b
 
 // ImageDPI returns image for given page number and DPI.
 func (f *Document) ImageDPI(pageNumber int, dpi float64) (*image.RGBA, error) {
-	f.mtx.Lock()
-	defer f.mtx.Unlock()
+	mupdf.Lock()
+	defer mupdf.Unlock()
 
-	if pageNumber >= f.NumPage() {
+	if pageNumber >= f.numPage() {
 		return nil, ErrPageMissing
 	}
 
@@ -271,10 +293,10 @@ func (f *Document) ImageDPI(pageNumber int, dpi float64) (*image.RGBA, error) {
 
 // ImagePNG returns image for given page number as PNG bytes.
 func (f *Document) ImagePNG(pageNumber int, dpi float64) ([]byte, error) {
-	f.mtx.Lock()
-	defer f.mtx.Unlock()
+	mupdf.Lock()
+	defer mupdf.Unlock()
 
-	if pageNumber >= f.NumPage() {
+	if pageNumber >= f.numPage() {
 		return nil, ErrPageMissing
 	}
 
@@ -325,10 +347,10 @@ func (f *Document) ImagePNG(pageNumber int, dpi float64) ([]byte, error) {
 
 // Links returns slice of links for given page number.
 func (f *Document) Links(pageNumber int) ([]Link, error) {
-	f.mtx.Lock()
-	defer f.mtx.Unlock()
+	mupdf.Lock()
+	defer mupdf.Unlock()
 
-	if pageNumber >= f.NumPage() {
+	if pageNumber >= f.numPage() {
 		return nil, ErrPageMissing
 	}
 
@@ -366,10 +388,10 @@ func (f *Document) Links(pageNumber int) ([]Link, error) {
 
 // Text returns text for given page number.
 func (f *Document) Text(pageNumber int) (string, error) {
-	f.mtx.Lock()
-	defer f.mtx.Unlock()
+	mupdf.Lock()
+	defer mupdf.Unlock()
 
-	if pageNumber >= f.NumPage() {
+	if pageNumber >= f.numPage() {
 		return "", ErrPageMissing
 	}
 
@@ -410,10 +432,10 @@ func (f *Document) Text(pageNumber int) (string, error) {
 
 // HTML returns html for given page number.
 func (f *Document) HTML(pageNumber int, header bool) (string, error) {
-	f.mtx.Lock()
-	defer f.mtx.Unlock()
+	mupdf.Lock()
+	defer mupdf.Unlock()
 
-	if pageNumber >= f.NumPage() {
+	if pageNumber >= f.numPage() {
 		return "", ErrPageMissing
 	}
 
@@ -467,10 +489,10 @@ func (f *Document) HTML(pageNumber int, header bool) (string, error) {
 
 // SVG returns svg document for given page number.
 func (f *Document) SVG(pageNumber int) (string, error) {
-	f.mtx.Lock()
-	defer f.mtx.Unlock()
+	mupdf.Lock()
+	defer mupdf.Unlock()
 
-	if pageNumber >= f.NumPage() {
+	if pageNumber >= f.numPage() {
 		return "", ErrPageMissing
 	}
 
@@ -510,6 +532,9 @@ func (f *Document) SVG(pageNumber int) (string, error) {
 
 // ToC returns the table of contents (also known as outline).
 func (f *Document) ToC() ([]Outline, error) {
+	mupdf.Lock()
+	defer mupdf.Unlock()
+
 	data := make([]Outline, 0)
 
 	outline := fzLoadOutline(f.ctx, f.doc)
@@ -545,6 +570,9 @@ func (f *Document) ToC() ([]Outline, error) {
 
 // Metadata returns the map with standard metadata.
 func (f *Document) Metadata() map[string]string {
+	mupdf.Lock()
+	defer mupdf.Unlock()
+
 	data := make(map[string]string)
 
 	lookup := func(key string) string {
@@ -570,10 +598,10 @@ func (f *Document) Metadata() map[string]string {
 
 // Bound gives the Bounds of a given Page in the document.
 func (f *Document) Bound(pageNumber int) (image.Rectangle, error) {
-	f.mtx.Lock()
-	defer f.mtx.Unlock()
+	mupdf.Lock()
+	defer mupdf.Unlock()
 
-	if pageNumber >= f.NumPage() {
+	if pageNumber >= f.numPage() {
 		return image.Rectangle{}, ErrPageMissing
 	}
 
@@ -592,14 +620,32 @@ func (f *Document) Bound(pageNumber int) (image.Rectangle, error) {
 
 // Close closes the underlying fitz document.
 func (f *Document) Close() error {
-	if f.stream != nil {
-		fzDropStream(f.ctx, f.stream)
+	mupdf.Lock()
+	defer mupdf.Unlock()
+
+	return f.close()
+}
+
+func (f *Document) close() error {
+	if f.ctx != nil {
+		if f.doc != nil {
+			fzDropDocument(f.ctx, f.doc)
+			f.doc = nil
+		}
+
+		if f.stream != nil {
+			fzDropStream(f.ctx, f.stream)
+			f.stream = nil
+		}
+
+		fzDropContext(f.ctx)
+		f.ctx = nil
 	}
 
-	fzDropDocument(f.ctx, f.doc)
-	fzDropContext(f.ctx)
-
+	f.pinner.Unpin()
 	f.data = nil
+
+	runtime.SetFinalizer(f, nil)
 
 	return nil
 }
@@ -649,6 +695,8 @@ var (
 	fzSetWarningCallback       func(ctx *fzContext, cb uintptr, user *byte)
 
 	silentWarning uintptr
+
+	mupdf sync.Mutex
 )
 
 // silenceWarnings installs a no-op warning callback, suppressing MuPDF's stderr warnings.

@@ -18,6 +18,7 @@ Go wrapper for [MuPDF](http://mupdf.com/) fitz library that can extract pages fr
 The bundled libraries are built without CJK fonts, if you need them you must use the external library.
 
 Concurrent rendering is supported when each goroutine uses its own `Document` (a separate MuPDF context). Concurrency on a single `Document`, including racing with `Close`, is not supported.
+With the `nocgo` implementation, calls into MuPDF are serialized across all documents, use the default cgo implementation for parallel rendering.
 
 The purego implementation loads the `libmupdf` shared library at runtime. Its version is detected automatically; set the `FZ_VERSION` environment variable (or `fitz.FzVersion`) to override it.
     
