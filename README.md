@@ -4,6 +4,8 @@
 
 Go wrapper for [MuPDF](http://mupdf.com/) fitz library that can extract pages from PDF, EPUB, MOBI, DOCX, XLSX and PPTX documents as IMG, TXT, HTML or SVG.
 
+For a pure Go alternative, see [folio](https://github.com/gen2brain/folio), document rendering in pure Go with no CGo.
+
 ### Build tags
 
 * `extlib` - use external MuPDF library
