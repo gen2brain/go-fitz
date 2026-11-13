@@ -191,15 +191,15 @@ int page_info(fz_context *ctx, fz_page *page, double *dpi, fz_rect *box) {
 			fz_image *img = blk->u.i.image;
 			double bw = blk->bbox.x1 - blk->bbox.x0;
 			double bh = blk->bbox.y1 - blk->bbox.y0;
-			if (bw > 0 && img->w * 72.0 / bw > nd)
-				nd = img->w * 72.0 / bw;
-			if (bh > 0 && img->h * 72.0 / bh > nd)
-				nd = img->h * 72.0 / bh;
-			if (bw * bh > barea) {
-				barea = bw * bh;
-				bb = blk->bbox;
-			}
+			if (bw <= 0 || bh <= 0 || bw * bh <= barea)
+				continue;
+			barea = bw * bh;
+			bb = blk->bbox;
+			nd = fz_max(img->w * 72.0 / bw, img->h * 72.0 / bh);
 		}
+
+		if (parea <= 0 || barea < 0.5 * parea)
+			nd = 0;
 	}
 	fz_always(ctx)
 		fz_drop_stext_page(ctx, text);
@@ -352,7 +352,7 @@ func (f *Document) NumPage() int {
 	return int(C.fz_count_pages(f.ctx, f.doc))
 }
 
-// Image returns the page at its native resolution (300 DPI if it has no images), cropped to a single full-page image.
+// Image returns the page at the native resolution of an image covering most of it (300 DPI otherwise), cropped to a single full-page image.
 func (f *Document) Image(pageNumber int) (*image.RGBA, error) {
 	dpi, x0, y0, x1, y1, crop := f.pageInfo(pageNumber)
 	if dpi <= 0 {

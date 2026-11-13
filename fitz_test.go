@@ -1,6 +1,7 @@
 package fitz_test
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"image"
@@ -430,5 +431,66 @@ func TestNoClose(t *testing.T) {
 		openDropped(t)
 		runtime.GC()
 		time.Sleep(10 * time.Millisecond)
+	}
+}
+
+func imagePDF(t *testing.T, pageSize, imageSize int) []byte {
+	var jpg bytes.Buffer
+	if err := jpeg.Encode(&jpg, image.NewRGBA(image.Rect(0, 0, 2000, 2000)), nil); err != nil {
+		t.Fatal(err)
+	}
+
+	content := fmt.Sprintf("q %d 0 0 %d 0 0 cm /Im0 Do Q", imageSize, imageSize)
+	objs := []string{
+		"<< /Type /Catalog /Pages 2 0 R >>",
+		"<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
+		fmt.Sprintf("<< /Type /Page /Parent 2 0 R /MediaBox [0 0 %d %d] /Resources << /XObject << /Im0 5 0 R >> >> /Contents 4 0 R >>", pageSize, pageSize),
+		fmt.Sprintf("<< /Length %d >>\nstream\n%s\nendstream", len(content), content),
+		fmt.Sprintf("<< /Type /XObject /Subtype /Image /Width 2000 /Height 2000 /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length %d >>\nstream\n%s\nendstream", jpg.Len(), jpg.String()),
+	}
+
+	var pdf bytes.Buffer
+	pdf.WriteString("%PDF-1.5\n")
+	offsets := make([]int, len(objs))
+	for i, obj := range objs {
+		offsets[i] = pdf.Len()
+		fmt.Fprintf(&pdf, "%d 0 obj\n%s\nendobj\n", i+1, obj)
+	}
+
+	xref := pdf.Len()
+	fmt.Fprintf(&pdf, "xref\n0 %d\n0000000000 65535 f \n", len(objs)+1)
+	for _, off := range offsets {
+		fmt.Fprintf(&pdf, "%010d 00000 n \n", off)
+	}
+	fmt.Fprintf(&pdf, "trailer\n<< /Size %d /Root 1 0 R >>\nstartxref\n%d\n%%%%EOF\n", len(objs)+1, xref)
+
+	return pdf.Bytes()
+}
+
+func TestImageNativeDPI(t *testing.T) {
+	for _, tt := range []struct {
+		name              string
+		pageSize, imgSize int
+		width, height     int
+	}{
+		{"small image", 612, 20, 2550, 2550},
+		{"full page image", 200, 200, 2000, 2000},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			doc, err := fitz.NewFromMemory(imagePDF(t, tt.pageSize, tt.imgSize))
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer doc.Close()
+
+			img, err := doc.Image(0)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			if b := img.Bounds(); b.Dx() != tt.width || b.Dy() != tt.height {
+				t.Errorf("got %dx%d, want %dx%d", b.Dx(), b.Dy(), tt.width, tt.height)
+			}
+		})
 	}
 }

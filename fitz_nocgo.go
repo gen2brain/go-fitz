@@ -150,7 +150,7 @@ func (f *Document) numPage() int {
 	return fzCountPages(f.ctx, f.doc)
 }
 
-// Image returns the page at its native resolution (300 DPI if it has no images), cropped to a single full-page image.
+// Image returns the page at the native resolution of an image covering most of it (300 DPI otherwise), cropped to a single full-page image.
 func (f *Document) Image(pageNumber int) (*image.RGBA, error) {
 	dpi, x0, y0, x1, y1, crop := f.pageInfo(pageNumber)
 	if dpi <= 0 {
@@ -217,20 +217,17 @@ func (f *Document) pageInfo(pageNumber int) (dpi, x0, y0, x1, y1 float64, crop b
 		img := *(**fzImage)(unsafe.Pointer(&blk.U[24]))
 		bw := float64(blk.Bbox.X1 - blk.Bbox.X0)
 		bh := float64(blk.Bbox.Y1 - blk.Bbox.Y0)
-		if bw > 0 {
-			if d := float64(img.W) * 72.0 / bw; d > dpi {
-				dpi = d
-			}
+		if bw <= 0 || bh <= 0 || bw*bh <= barea {
+			continue
 		}
-		if bh > 0 {
-			if d := float64(img.H) * 72.0 / bh; d > dpi {
-				dpi = d
-			}
-		}
-		if bw*bh > barea {
-			barea = bw * bh
-			box = blk.Bbox
-		}
+
+		barea = bw * bh
+		box = blk.Bbox
+		dpi = max(float64(img.W)*72.0/bw, float64(img.H)*72.0/bh)
+	}
+
+	if parea <= 0 || barea < 0.5*parea {
+		dpi = 0
 	}
 
 	crop = !hasText && parea > 0 && barea >= 0.5*parea
