@@ -663,6 +663,7 @@ var (
 	fzCountPages               func(ctx *fzContext, doc *fzDocument) int
 	fzLoadPage                 func(ctx *fzContext, doc *fzDocument, number int) *fzPage
 	fzDropPage                 func(ctx *fzContext, page *fzPage)
+	fzDropDisplayList          func(ctx *fzContext, list *fzDisplayList)
 	fzNewPixmap                func(ctx *fzContext, colorspace *fzColorspace, w, h int, seps *fzSeparations, alpha int) *fzPixmap
 	fzDropPixmap               func(ctx *fzContext, pix *fzPixmap)
 	fzPixmapSamples            func(ctx *fzContext, pix *fzPixmap) *uint8
@@ -979,6 +980,8 @@ type fzDocument struct {
 	IsReflowable         int32
 	Open                 *fzPage
 }
+
+type fzDisplayList struct{}
 
 type fzOutline struct {
 	Refs  int32

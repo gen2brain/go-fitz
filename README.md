@@ -70,3 +70,29 @@ func main() {
 	}
 }
 ```
+
+### Bounded rendering
+
+`RenderPageBands` renders a page as bounded horizontal bands so callers can
+process large pages without retaining a full-page MuPDF pixmap. The callback
+must consume `Band.Samples` before returning. Each `Document` must still be
+used by only one goroutine at a time.
+
+```go
+err := doc.RenderPageBands(0, fitz.BandOptions{
+	DPI:            150,
+	BandHeight:     256,
+	Alpha:          false,
+	UseDisplayList: true,
+}, func(band fitz.Band) error {
+	// Encode or write this band before returning.
+	return nil
+})
+```
+
+`BandHeight` controls the renderer's peak pixmap allocation. Smaller bands
+reduce memory usage, while larger bands may improve throughput. The callback
+receives tightly packed row data in `Samples` with `Stride` bytes per row.
+The purego backend supports bounded bands and display-list replay when
+`UseDisplayList` is enabled. It still requires a matching MuPDF shared library
+at runtime.
