@@ -93,3 +93,5 @@ err := doc.RenderPageBands(0, fitz.BandOptions{
 `BandHeight` controls the renderer's peak pixmap allocation. Smaller bands
 reduce memory usage, while larger bands may improve throughput. The callback
 receives tightly packed row data in `Samples` with `Stride` bytes per row.
+The purego backend supports bounded bands using direct page rendering; it does
+not currently replay a display list.

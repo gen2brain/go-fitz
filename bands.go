@@ -1,12 +1,12 @@
 package fitz
 
-import "errors"
-
 // BandOptions controls bounded page rendering.
 type BandOptions struct {
-	DPI            float64
-	BandHeight     int
-	Alpha          bool
+	DPI        float64
+	BandHeight int
+	Alpha      bool
+	// UseDisplayList replays a recorded page when supported by the backend.
+	// The purego backend currently renders the page directly for each band.
 	UseDisplayList bool
 }
 
@@ -20,5 +20,3 @@ type Band struct {
 	Components int
 	Samples    []byte
 }
-
-var ErrBandedRenderingUnavailable = errors.New("fitz: banded rendering unavailable")
