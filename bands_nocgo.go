@@ -8,9 +8,8 @@ import (
 	"unsafe"
 )
 
-// RenderPageBands renders directly into one bounded pixmap at a time. The
-// purego backend does not currently expose MuPDF display-list bindings, so it
-// uses direct page execution even when UseDisplayList is requested.
+// RenderPageBands renders directly into one bounded pixmap at a time. When
+// requested, the purego backend records the page once and replays clipped bands.
 func (f *Document) RenderPageBands(
 	pageNumber int,
 	options BandOptions,
@@ -39,7 +38,26 @@ func (f *Document) RenderPageBands(
 	}
 	defer fzDropPage(f.ctx, page)
 
-	bounds := boundPage(f.ctx, page)
+	pageBounds := boundPage(f.ctx, page)
+	var displayList *fzDisplayList
+	if options.UseDisplayList {
+		displayList = newDisplayList(f.ctx, pageBounds)
+		if displayList == nil {
+			return ErrRunPageContents
+		}
+		defer dropDisplayList(f.ctx, displayList)
+
+		listDevice := newListDevice(f.ctx, displayList)
+		if listDevice == nil {
+			return ErrRunPageContents
+		}
+		fzEnableDeviceHints(f.ctx, listDevice, fzNoCache)
+		runPage(f.ctx, page, listDevice, fzIdentity)
+		fzCloseDevice(f.ctx, listDevice)
+		fzDropDevice(f.ctx, listDevice)
+	}
+
+	bounds := pageBounds
 	ctm := scale(float32(options.DPI/72), float32(options.DPI/72))
 	bounds = transformRect(bounds, ctm)
 	bbox := roundRect(bounds)
@@ -65,13 +83,27 @@ func (f *Document) RenderPageBands(
 		pixmap.H = int32(bandHeight)
 		fzClearPixmapWithValue(f.ctx, pixmap, 0xff)
 
-		device := newDrawDevice(f.ctx, ctm, pixmap)
+		deviceTransform := ctm
+		if displayList != nil {
+			deviceTransform = fzIdentity
+		}
+		device := newDrawDevice(f.ctx, deviceTransform, pixmap)
 		if device == nil {
 			fzDropPixmap(f.ctx, pixmap)
 			return ErrRunPageContents
 		}
 		fzEnableDeviceHints(f.ctx, device, fzNoCache)
-		runPage(f.ctx, page, device, fzIdentity)
+		if displayList != nil {
+			clip := fzRect{
+				X0: float32(bbox.X0),
+				Y0: float32(bbox.Y0 + int32(offset)),
+				X1: float32(bbox.X1),
+				Y1: float32(bbox.Y0 + int32(offset+bandHeight+2)),
+			}
+			runDisplayList(f.ctx, displayList, device, ctm, clip)
+		} else {
+			runPage(f.ctx, page, device, fzIdentity)
+		}
 		fzCloseDevice(f.ctx, device)
 		fzDropDevice(f.ctx, device)
 

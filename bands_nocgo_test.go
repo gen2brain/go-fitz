@@ -14,9 +14,10 @@ func TestRenderPageBandsNocgo(t *testing.T) {
 	bands := 0
 	rows := 0
 	err = doc.RenderPageBands(0, BandOptions{
-		DPI:        72,
-		BandHeight: 64,
-		Alpha:      true,
+		DPI:            72,
+		BandHeight:     64,
+		Alpha:          true,
+		UseDisplayList: true,
 	}, func(band Band) error {
 		if band.Width <= 0 || band.Height <= 0 || band.Components != 4 {
 			t.Fatalf("invalid band: %+v", band)
